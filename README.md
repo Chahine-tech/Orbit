@@ -12,10 +12,16 @@ Most AI tools give you one context. Orbit gives you one context **per repo**, ea
 
 - **Workspaces** — add any local folder as a workspace; each gets its own isolated session
 - **Tabs** — multiple parallel sessions per workspace (⌘T / ⌘W to open/close, ⌘1–9 to switch)
+- **Split pane** — split any tab horizontally (⊞) to run two sessions side by side
+- **Broadcast input** — send the same keystrokes to all sessions in a workspace simultaneously (⊕)
+- **Session logs** — export the full terminal output to `.txt` or `.md` (↓)
 - **Live git branch** — current branch shown in the header, updates on checkout
 - **Tab rename** — double-click any tab to rename it
+- **Workspace colors** — click the status dot to cycle through accent colors
+- **Drag & drop** — reorder workspaces by dragging
 - **Settings** — configure terminal font, font size, and the CLI to run (`claude`, `codex`, `aider`…)
 - **Persistent state** — open tabs and active workspace are restored on relaunch
+- **Auto-update** — checks GitHub Releases on startup and shows a banner when a new version is available
 
 ## Stack
 
