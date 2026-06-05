@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { TabBar } from './components/TabBar';
 import { Terminal } from './components/Terminal';
 import { SettingsPanel } from './components/SettingsPanel';
+import { WorkspaceDiscovery } from './components/WorkspaceDiscovery';
 import { DEFAULT_SETTINGS } from './types';
 import type { Workspace, Tab, Settings } from './types';
 
@@ -22,7 +23,7 @@ type AppState = {
 };
 
 type Action =
-  | { type: 'init'; workspaces: Workspace[]; persisted: { activeId: string | null; tabs: Record<string, Tab[]>; activeTabId: Record<string, string> } | null }
+  | { type: 'init'; workspaces: Workspace[]; persisted: { activeId: string | null; tabs: Record<string, Tab[]>; activeTabId: Record<string, string> } | null; autoStart: boolean }
   | { type: 'workspace-added'; workspace: Workspace; firstTab: Tab }
   | { type: 'workspace-removed'; id: string }
   | { type: 'workspace-selected'; id: string; newTab?: Tab }
@@ -55,15 +56,20 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'init': {
       const p = action.persisted;
+      if (!p) return { ...state, workspaces: action.workspaces };
+      const mountedIds = p.activeId ? new Set([p.activeId]) : new Set<string>();
+      if (action.autoStart) {
+        Object.keys(p.tabs).forEach(id => {
+          if ((p.tabs[id]?.length ?? 0) > 0) mountedIds.add(id);
+        });
+      }
       return {
         ...state,
         workspaces: action.workspaces,
-        ...(p && {
-          tabs: p.tabs,
-          activeTabId: p.activeTabId,
-          activeId: p.activeId,
-          mountedIds: p.activeId ? new Set([p.activeId]) : new Set<string>(),
-        }),
+        tabs: p.tabs,
+        activeTabId: p.activeTabId,
+        activeId: p.activeId,
+        mountedIds,
       };
     }
     case 'workspace-added':
@@ -231,6 +237,11 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [broadcastMode, setBroadcastMode] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<{ version: string; url: string } | null>(null);
+  const [worktreeOpen, setWorktreeOpen] = useState(false);
+  const [worktreeBranch, setWorktreeBranch] = useState('');
+  const [worktreeCreating, setWorktreeCreating] = useState(false);
+  const [worktreeError, setWorktreeError] = useState('');
+  const [discoveryState, setDiscoveryState] = useState<{ folderPath: string; repos: Array<{ name: string; path: string }> } | null>(null);
 
   // Per-session output log for export (capped at 5 MB per session)
   const logBuffer = useRef<Record<string, string>>({});
@@ -241,8 +252,9 @@ export function App() {
       window.api.getTabsState(),
       window.api.getSettings(),
     ]).then(([wsList, persisted, savedSettings]) => {
-      dispatch({ type: 'init', workspaces: wsList, persisted });
-      if (savedSettings) setSettings(savedSettings);
+      const merged = { ...DEFAULT_SETTINGS, ...savedSettings };
+      setSettings(merged);
+      dispatch({ type: 'init', workspaces: wsList, persisted, autoStart: merged.autoStart });
     });
   }, []);
 
@@ -301,9 +313,48 @@ export function App() {
 
   const handleCloseTab = async (workspaceId: string, tabId: string) => {
     const tab = tabs[workspaceId]?.find(t => t.id === tabId);
+
+    if (tab?.worktreePath && tab.worktreeBranch) {
+      const shouldRemove = await window.api.confirmRemoveWorktree(tab.worktreeBranch);
+      if (shouldRemove) {
+        await window.api.removeWorktree(tab.worktreePath).catch(() => {});
+      }
+    }
+
     await window.api.ptyKill(tabId);
     if (tab?.splitSessionId) await window.api.ptyKill(tab.splitSessionId);
     dispatch({ type: 'tab-closed', workspaceId, tabId });
+  };
+
+  const handleAddWorktreeTab = async () => {
+    if (!activeWorkspace) return;
+    const branch = worktreeBranch.trim();
+    if (!branch) return;
+    setWorktreeCreating(true);
+    setWorktreeError('');
+    try {
+      const worktreePath = await window.api.createWorktree(activeWorkspace.path, branch);
+      const tab: Tab = {
+        id: `${activeWorkspace.id}-${Date.now()}`,
+        workspaceId: activeWorkspace.id,
+        label: branch,
+        restartCount: 0,
+        worktreePath,
+        worktreeBranch: branch,
+      };
+      dispatch({ type: 'tab-added', workspaceId: activeWorkspace.id, tab });
+      setWorktreeOpen(false);
+      setWorktreeBranch('');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setWorktreeError(
+        msg.includes('not a git') ? 'This workspace is not a git repository.' :
+        msg.includes('already') ? 'Branch or worktree already exists.' :
+        'Failed to create worktree. Check that the branch name is valid.'
+      );
+    } finally {
+      setWorktreeCreating(false);
+    }
   };
 
   const handleRestartTab = (workspaceId: string, tabId: string) => {
@@ -345,7 +396,27 @@ export function App() {
   const handleAdd = async () => {
     const folderPath = await window.api.openFolderDialog();
     if (!folderPath) return;
-    const workspace = await window.api.addWorkspace(folderPath);
+    const discovery = await window.api.discoverWorkspaces(folderPath);
+    if (discovery.isRepo || discovery.repos.length === 0) {
+      const workspace = await window.api.addWorkspace(folderPath);
+      dispatch({ type: 'workspace-added', workspace, firstTab: newTab(workspace.id, []) });
+    } else {
+      setDiscoveryState({ folderPath, repos: discovery.repos });
+    }
+  };
+
+  const handleDiscoveryAdd = async (selected: Array<{ name: string; path: string }>) => {
+    setDiscoveryState(null);
+    for (const repo of selected) {
+      const workspace = await window.api.addWorkspace(repo.path);
+      dispatch({ type: 'workspace-added', workspace, firstTab: newTab(workspace.id, []) });
+    }
+  };
+
+  const handleDiscoveryAddParent = async () => {
+    if (!discoveryState) return;
+    setDiscoveryState(null);
+    const workspace = await window.api.addWorkspace(discoveryState.folderPath);
     dispatch({ type: 'workspace-added', workspace, firstTab: newTab(workspace.id, []) });
   };
 
@@ -437,12 +508,14 @@ export function App() {
         workspaces={workspaces}
         activeId={activeId}
         connectedIds={connectedIds}
+        compact={settings.sidebarCompact}
         onSelect={handleSelect}
         onAdd={handleAdd}
         onRemove={handleRemove}
         onReorder={handleReorder}
         onSetColor={handleSetColor}
         onSettings={() => setSettingsOpen(true)}
+        onToggleCompact={() => handleSettingsChange({ ...settings, sidebarCompact: !settings.sidebarCompact })}
       />
       <div className="main">
         {updateInfo && (
@@ -498,6 +571,7 @@ export function App() {
               tabStatus={tabStatus}
               onSelect={tabId => dispatch({ type: 'active-tab', workspaceId: activeWorkspace.id, tabId })}
               onAdd={() => handleAddTab(activeWorkspace.id)}
+              onAddWorktree={() => { setWorktreeOpen(true); setWorktreeError(''); setWorktreeBranch(''); }}
               onClose={tabId => handleCloseTab(activeWorkspace.id, tabId)}
               onStartEdit={tabId => dispatch({ type: 'editing-tab', tabId })}
               onRename={(tabId, label) => dispatch({ type: 'tab-renamed', workspaceId: activeWorkspace.id, tabId, label })}
@@ -543,7 +617,7 @@ export function App() {
                         <Terminal
                           key={tab.id}
                           sessionId={tab.id}
-                          workspacePath={ws.path}
+                          workspacePath={tab.worktreePath ?? ws.path}
                           hidden={false}
                           fontFamily={settings.fontFamily}
                           fontSize={settings.fontSize}
@@ -564,7 +638,7 @@ export function App() {
                           <Terminal
                             key={tab.splitSessionId}
                             sessionId={tab.splitSessionId}
-                            workspacePath={ws.path}
+                            workspacePath={tab.worktreePath ?? ws.path}
                             hidden={false}
                             fontFamily={settings.fontFamily}
                             fontSize={settings.fontSize}
@@ -580,7 +654,7 @@ export function App() {
                     <Terminal
                       key={tab.id}
                       sessionId={tab.id}
-                      workspacePath={ws.path}
+                      workspacePath={tab.worktreePath ?? ws.path}
                       hidden={!isThisTabActive}
                       fontFamily={settings.fontFamily}
                       fontSize={settings.fontSize}
@@ -601,6 +675,76 @@ export function App() {
           onChange={handleSettingsChange}
         />
       )}
+      {discoveryState && (
+        <WorkspaceDiscovery
+          folderPath={discoveryState.folderPath}
+          repos={discoveryState.repos}
+          onAdd={handleDiscoveryAdd}
+          onAddParent={handleDiscoveryAddParent}
+          onCancel={() => setDiscoveryState(null)}
+        />
+      )}
+      {worktreeOpen && activeWorkspace && (
+        <div
+          className="worktree-overlay"
+          onClick={() => { setWorktreeOpen(false); setWorktreeError(''); }}
+        >
+          <div className="worktree-dialog" onClick={e => e.stopPropagation()}>
+            <div className="worktree-dialog-title">⎇ New worktree tab</div>
+            <div className="worktree-dialog-subtitle">
+              Creates <code>{activeWorkspace.path.split('/').pop()}.worktrees/&lt;branch&gt;</code> and opens a session there.
+            </div>
+            <WorktreeInput
+              value={worktreeBranch}
+              onChange={setWorktreeBranch}
+              onSubmit={handleAddWorktreeTab}
+              onCancel={() => { setWorktreeOpen(false); setWorktreeError(''); }}
+            />
+            {worktreeError && <p className="worktree-error">{worktreeError}</p>}
+            <div className="worktree-dialog-actions">
+              <button
+                type="button"
+                className="worktree-cancel-btn"
+                onClick={() => { setWorktreeOpen(false); setWorktreeError(''); }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="worktree-create-btn"
+                disabled={!worktreeBranch.trim() || worktreeCreating}
+                onClick={handleAddWorktreeTab}
+              >
+                {worktreeCreating ? 'Creating…' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Separate component so useEffect for focus doesn't re-run on parent re-renders
+function WorktreeInput({ value, onChange, onSubmit, onCancel }: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+  return (
+    <input
+      ref={ref}
+      className="worktree-input"
+      placeholder="feat/my-feature"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === 'Enter') onSubmit();
+        if (e.key === 'Escape') onCancel();
+      }}
+    />
   );
 }

@@ -73,7 +73,16 @@ body {
 }
 .remove-btn:hover { color: #f87171; }
 
-.sidebar-footer { padding: 10px 8px; border-top: 1px solid #252525; }
+.sidebar-footer {
+  padding: 10px 8px;
+  border-top: 1px solid #252525;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar-footer .add-btn { flex: 1; width: auto; }
+
+.footer-settings-btn { flex-shrink: 0; }
 
 .add-btn {
   width: 100%; padding: 8px 10px; background: transparent;
@@ -568,3 +577,302 @@ body {
   line-height: 1;
 }
 .pane-close-btn:hover { color: #f87171; border-color: #f87171; background: #2a1a1a; }
+
+/* ── Worktree tab icon ───────────────────────── */
+
+.tab-icon-worktree { color: #a78bfa; opacity: 1 !important; }
+
+.tab-add-worktree { color: #a78bfa; font-size: 14px; }
+.tab-add-worktree:hover { color: #c4b5fd; background: #1e1a2e; }
+
+/* ── Worktree dialog ─────────────────────────── */
+
+.worktree-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 120px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.worktree-dialog {
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  border-radius: 10px;
+  padding: 20px;
+  width: 380px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.worktree-dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin-bottom: 6px;
+}
+
+.worktree-dialog-subtitle {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.worktree-dialog-subtitle code {
+  background: #252525;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-family: "Menlo", "Monaco", monospace;
+  color: #aaa;
+}
+
+.worktree-input {
+  width: 100%;
+  background: #252525;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #e0e0e0;
+  font-size: 13px;
+  font-family: "Menlo", "Monaco", monospace;
+  padding: 8px 10px;
+  outline: none;
+  margin-bottom: 10px;
+}
+.worktree-input:focus { border-color: #a78bfa; }
+.worktree-input::placeholder { color: #444; }
+
+.worktree-error {
+  font-size: 12px;
+  color: #f87171;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.worktree-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.worktree-cancel-btn {
+  background: none;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #777;
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.worktree-cancel-btn:hover { background: #252525; color: #aaa; }
+
+.worktree-create-btn {
+  background: #7c3aed;
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.worktree-create-btn:hover:not(:disabled) { background: #6d28d9; }
+.worktree-create-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Compact sidebar ──────────────────────────── */
+
+.sidebar { transition: width 0.18s ease; }
+
+.sidebar.compact {
+  width: 48px;
+  min-width: 48px;
+}
+
+.sidebar.compact .sidebar-header {
+  justify-content: center;
+  padding: 40px 0 12px;
+}
+
+.sidebar.compact .workspace-list { padding: 4px 0; }
+
+.sidebar.compact .workspace-item {
+  justify-content: center;
+  padding: 8px 0;
+  gap: 0;
+  border-radius: 0;
+}
+
+.sidebar.compact .status-dot { width: 10px; height: 10px; }
+
+.sidebar.compact .sidebar-footer {
+  padding: 8px 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-toggle-btn {
+  background: none;
+  border: none;
+  color: #3a3a3a;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.sidebar-toggle-btn:hover { color: #777; background: rgba(255,255,255,0.04); }
+
+.add-btn-compact {
+  border: none !important;
+  font-size: 20px;
+  padding: 6px 0 !important;
+  text-align: center;
+  color: #555;
+  background: transparent !important;
+}
+.add-btn-compact:hover { color: #aaa !important; }
+
+/* ── Workspace discovery dialog ────────────────── */
+
+.discovery-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.discovery-dialog {
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  border-radius: 10px;
+  padding: 20px;
+  width: 440px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.discovery-header { display: flex; align-items: baseline; gap: 8px; }
+
+.discovery-title { font-size: 14px; font-weight: 600; color: #e0e0e0; }
+
+.discovery-subtitle {
+  font-size: 12px;
+  color: #555;
+  font-family: "Menlo", "Monaco", monospace;
+}
+
+.discovery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.discovery-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #888;
+  transition: background 0.1s;
+}
+.discovery-item:hover { background: #252525; color: #ddd; }
+.discovery-item.checked { color: #e0e0e0; }
+.discovery-item input[type="checkbox"] { accent-color: #4ade80; cursor: pointer; flex-shrink: 0; }
+.discovery-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.discovery-actions { display: flex; align-items: center; gap: 8px; }
+
+.discovery-parent-btn {
+  background: none;
+  border: none;
+  color: #444;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.discovery-parent-btn:hover { color: #777; }
+
+.discovery-cancel-btn {
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #777;
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.discovery-cancel-btn:hover { background: #252525; color: #aaa; }
+
+.discovery-add-btn {
+  background: #4ade80;
+  border: none;
+  border-radius: 5px;
+  color: #0a0a0a;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.discovery-add-btn:hover:not(:disabled) { background: #86efac; }
+.discovery-add-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Settings toggle ─────────────────────────── */
+
+.settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.settings-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  width: 36px;
+  height: 20px;
+  background: #333;
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.settings-toggle input:checked + .toggle-track { background: #4ade80; }
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  pointer-events: none;
+}
+
+.settings-toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(16px); }

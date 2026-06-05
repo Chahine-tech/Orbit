@@ -7,15 +7,17 @@ interface SidebarProps {
   workspaces: Workspace[];
   activeId: string | null;
   connectedIds: Set<string>;
+  compact: boolean;
   onSelect: (id: string) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
   onReorder: (fromId: string, toId: string) => void;
   onSetColor: (id: string, color: string) => void;
   onSettings: () => void;
+  onToggleCompact: () => void;
 }
 
-export function Sidebar({ workspaces, activeId, connectedIds, onSelect, onAdd, onRemove, onReorder, onSetColor, onSettings }: SidebarProps) {
+export function Sidebar({ workspaces, activeId, connectedIds, compact, onSelect, onAdd, onRemove, onReorder, onSetColor, onSettings, onToggleCompact }: SidebarProps) {
   const [filter, setFilter] = useState('');
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const dragRef = useRef<string | null>(null);
@@ -32,13 +34,20 @@ export function Sidebar({ workspaces, activeId, connectedIds, onSelect, onAdd, o
   };
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar${compact ? ' compact' : ''}`}>
       <div className="sidebar-header">
-        <span className="sidebar-title">Orbit</span>
-        <button type="button" className="icon-btn" title="Settings" onClick={onSettings}>⚙</button>
+        {!compact && <span className="sidebar-title">Orbit</span>}
+        <button
+          type="button"
+          className="sidebar-toggle-btn"
+          title={compact ? 'Expand sidebar' : 'Collapse sidebar'}
+          onClick={onToggleCompact}
+        >
+          {compact ? '›' : '‹'}
+        </button>
       </div>
 
-      {workspaces.length > 3 && (
+      {!compact && workspaces.length > 3 && (
         <div className="sidebar-search-wrapper">
           <input
             type="text"
@@ -50,7 +59,8 @@ export function Sidebar({ workspaces, activeId, connectedIds, onSelect, onAdd, o
         </div>
       )}
 
-      <div className="section-label">PROJECTS</div>
+      {!compact && <div className="section-label">PROJECTS</div>}
+
       <div className="workspace-list">
         {filtered.map(ws => {
           const connected = connectedIds.has(ws.id);
@@ -60,7 +70,8 @@ export function Sidebar({ workspaces, activeId, connectedIds, onSelect, onAdd, o
               key={ws.id}
               role="button"
               tabIndex={0}
-              draggable
+              draggable={!compact}
+              title={compact ? ws.name : undefined}
               className={`workspace-item ${ws.id === activeId ? 'active' : ''} ${dragOverId === ws.id ? 'drag-over' : ''}`}
               onClick={() => onSelect(ws.id)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onSelect(ws.id); }}
@@ -75,29 +86,39 @@ export function Sidebar({ workspaces, activeId, connectedIds, onSelect, onAdd, o
               <span
                 className="status-dot"
                 style={{ background: dotColor, boxShadow: connected ? `0 0 4px ${dotColor}66` : 'none', cursor: connected ? 'pointer' : 'default' }}
-                title={connected ? 'Click to change color' : undefined}
+                title={connected && !compact ? 'Click to change color' : undefined}
                 onClick={e => cycleColor(ws, e)}
               />
-              <span className="workspace-name">{ws.name}</span>
-              <button
-                type="button"
-                className="remove-btn"
-                onClick={e => { e.stopPropagation(); onRemove(ws.id); }}
-              >
-                ×
-              </button>
+              {!compact && <span className="workspace-name">{ws.name}</span>}
+              {!compact && (
+                <button
+                  type="button"
+                  className="remove-btn"
+                  onClick={e => { e.stopPropagation(); onRemove(ws.id); }}
+                >
+                  ×
+                </button>
+              )}
             </div>
           );
         })}
-        {filtered.length === 0 && filter && (
+        {!compact && filtered.length === 0 && filter && (
           <p className="sidebar-empty-filter">No match for "{filter}"</p>
         )}
       </div>
 
       <div className="sidebar-footer">
-        <button type="button" className="add-btn" onClick={onAdd}>
-          + New workspace
-        </button>
+        {compact ? (
+          <>
+            <button type="button" className="icon-btn footer-settings-btn" title="Settings" onClick={onSettings}>⚙</button>
+            <button type="button" className="add-btn add-btn-compact" title="Add workspace" onClick={onAdd}>+</button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="add-btn" onClick={onAdd}>+ New workspace</button>
+            <button type="button" className="icon-btn footer-settings-btn" title="Settings" onClick={onSettings}>⚙</button>
+          </>
+        )}
       </div>
     </div>
   );

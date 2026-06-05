@@ -104,6 +104,23 @@ export function SettingsPanel({ settings, onClose, onChange }: SettingsPanelProp
           <p className="settings-hint">Applied to new sessions — restart existing tabs to use the new command.</p>
         </div>
 
+        {/* ── Startup ── */}
+        <div className="settings-section">
+          <div className="settings-section-title">STARTUP</div>
+          <div className="settings-row">
+            <span className="settings-label">Auto-start sessions</span>
+            <label className="settings-toggle">
+              <input
+                type="checkbox"
+                checked={settings.autoStart}
+                onChange={e => set({ autoStart: e.target.checked })}
+              />
+              <span className="toggle-track"><span className="toggle-thumb" /></span>
+            </label>
+          </div>
+          <p className="settings-hint">Automatically spawn all sessions when Orbit launches.</p>
+        </div>
+
         {/* ── Keyboard shortcuts ── */}
         <div className="settings-section">
           <div className="settings-section-title">KEYBOARD SHORTCUTS</div>

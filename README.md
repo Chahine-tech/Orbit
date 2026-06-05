@@ -12,6 +12,7 @@ Most AI tools give you one context. Orbit gives you one context **per repo**, ea
 
 - **Workspaces** — add any local folder as a workspace; each gets its own isolated session
 - **Tabs** — multiple parallel sessions per workspace (⌘T / ⌘W to open/close, ⌘1–9 to switch)
+- **Worktree tabs** — create a git worktree + branch in one click (⎇); each tab runs an isolated clone of the repo so parallel AI agents never conflict
 - **Split pane** — split any tab horizontally (⊞) to run two sessions side by side
 - **Broadcast input** — send the same keystrokes to all sessions in a workspace simultaneously (⊕)
 - **Session logs** — export the full terminal output to `.txt` or `.md` (↓)
@@ -21,6 +22,9 @@ Most AI tools give you one context. Orbit gives you one context **per repo**, ea
 - **Drag & drop** — reorder workspaces by dragging
 - **Settings** — configure terminal font, font size, and the CLI to run (`claude`, `codex`, `aider`…)
 - **Persistent state** — open tabs and active workspace are restored on relaunch
+- **Auto-start sessions** — optional setting to automatically spawn all sessions on launch (no clicking through workspaces)
+- **Compact sidebar** — collapse the sidebar to icon-only mode (‹/›) to reclaim screen space on small displays
+- **Multi-root workspace discovery** — add a parent folder (e.g. `~/GitHub`) and Orbit scans its subdirectories for git repos, letting you bulk-add them in one step
 - **Auto-update** — checks GitHub Releases on startup and shows a banner when a new version is available
 
 ## Stack

@@ -8,12 +8,13 @@ interface TabBarProps {
   tabStatus: Record<string, 'running' | 'exited'>;
   onSelect: (tabId: string) => void;
   onAdd: () => void;
+  onAddWorktree: () => void;
   onClose: (tabId: string) => void;
   onStartEdit: (tabId: string) => void;
   onRename: (tabId: string, label: string) => void;
 }
 
-export function TabBar({ tabs, activeTabId, editingTabId, tabStatus, onSelect, onAdd, onClose, onStartEdit, onRename }: TabBarProps) {
+export function TabBar({ tabs, activeTabId, editingTabId, tabStatus, onSelect, onAdd, onAddWorktree, onClose, onStartEdit, onRename }: TabBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -24,6 +25,7 @@ export function TabBar({ tabs, activeTabId, editingTabId, tabStatus, onSelect, o
     <div className="tab-bar">
       {tabs.map(tab => {
         const exited = tabStatus[tab.id] === 'exited';
+        const isWorktree = !!tab.worktreeBranch;
         return (
           <div
             key={tab.id}
@@ -38,8 +40,8 @@ export function TabBar({ tabs, activeTabId, editingTabId, tabStatus, onSelect, o
               if (e.key === 'F2') onStartEdit(tab.id);
             }}
           >
-            <span className={`tab-icon ${exited ? 'tab-icon-exited' : ''}`}>
-              {exited ? '⊘' : '⌨'}
+            <span className={`tab-icon ${exited ? 'tab-icon-exited' : isWorktree ? 'tab-icon-worktree' : ''}`}>
+              {exited ? '⊘' : isWorktree ? '⎇' : '⌨'}
             </span>
             {editingTabId === tab.id ? (
               <input
@@ -69,9 +71,8 @@ export function TabBar({ tabs, activeTabId, editingTabId, tabStatus, onSelect, o
           </div>
         );
       })}
-      <button type="button" className="tab-add" onClick={onAdd} title="New session">
-        +
-      </button>
+      <button type="button" className="tab-add" title="New session (⌘T)" onClick={onAdd}>+</button>
+      <button type="button" className="tab-add tab-add-worktree" title="New worktree tab" onClick={onAddWorktree}>⎇</button>
     </div>
   );
 }

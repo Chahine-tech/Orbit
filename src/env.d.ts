@@ -9,8 +9,12 @@ declare global {
       reorderWorkspaces: (ids: string[]) => Promise<void>;
       setWorkspaceColor: (id: string, color: string) => Promise<void>;
       openFolderDialog: () => Promise<string | null>;
+      discoverWorkspaces: (folderPath: string) => Promise<{ isRepo: boolean; repos: Array<{ name: string; path: string }> }>;
       saveLog: (content: string, filename: string) => Promise<void>;
       openExternal: (url: string) => Promise<void>;
+      createWorktree: (workspacePath: string, branch: string) => Promise<string>;
+      removeWorktree: (worktreePath: string) => Promise<void>;
+      confirmRemoveWorktree: (branch: string) => Promise<boolean>;
       getBranch: (workspacePath: string) => Promise<string | null>;
       getTabsState: () => Promise<{ activeId: string | null; tabs: Record<string, Tab[]>; activeTabId: Record<string, string> } | null>;
       saveTabsState: (state: { activeId: string | null; tabs: Record<string, Tab[]>; activeTabId: Record<string, string> }) => Promise<void>;

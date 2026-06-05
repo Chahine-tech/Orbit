@@ -32,11 +32,11 @@ function getSettingsFile() {
 
 const DEFAULT_SHELL = 'claude';
 
-function loadSettings(): { fontFamily: string; fontSize: number; shell: string } {
+function loadSettings(): { fontFamily: string; fontSize: number; shell: string; autoStart: boolean; sidebarCompact: boolean } {
   try {
     return JSON.parse(fs.readFileSync(getSettingsFile(), 'utf-8'));
   } catch {
-    return { fontFamily: '"JetBrains Mono", "Menlo", "Monaco", monospace', fontSize: 13, shell: DEFAULT_SHELL };
+    return { fontFamily: '"JetBrains Mono", "Menlo", "Monaco", monospace', fontSize: 13, shell: DEFAULT_SHELL, autoStart: false, sidebarCompact: false };
   }
 }
 
@@ -224,6 +224,21 @@ app.whenReady().then(() => {
     return workspace;
   });
 
+  ipcMain.handle('workspaces:discover', (_, { folderPath }: { folderPath: string }) => {
+    const isRepo = fs.existsSync(path.join(folderPath, '.git'));
+    if (isRepo) return { isRepo: true, repos: [] };
+    try {
+      const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+      const repos = entries
+        .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+        .filter(e => fs.existsSync(path.join(folderPath, e.name, '.git')))
+        .map(e => ({ name: e.name, path: path.join(folderPath, e.name) }));
+      return { isRepo: false, repos };
+    } catch {
+      return { isRepo: false, repos: [] };
+    }
+  });
+
   ipcMain.handle('workspaces:remove', (_, { id }: { id: string }) => {
     const workspaces = loadWorkspaces();
     const ws = workspaces.find(w => w.id === id);
@@ -257,6 +272,53 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('shell:open-external', (_event, url: string) => shell.openExternal(url));
+
+  ipcMain.handle('worktree:create', async (_event, { workspacePath, branch }: { workspacePath: string; branch: string }) => {
+    const slug = branch.replace(/\//g, '-').replace(/[^a-zA-Z0-9._-]/g, '-');
+    const worktreeDir = path.join(path.dirname(workspacePath), `${path.basename(workspacePath)}.worktrees`);
+    const worktreePath = path.join(worktreeDir, slug);
+
+    if (fs.existsSync(worktreePath)) {
+      throw new Error(`A worktree already exists at that path. Choose a different branch name.`);
+    }
+    fs.mkdirSync(worktreeDir, { recursive: true });
+
+    try {
+      // Attempt to create a new branch
+      await execAsync(`git worktree add "${worktreePath}" -b "${branch}"`, { cwd: workspacePath });
+    } catch {
+      try {
+        // Branch already exists — just check it out in a new worktree
+        await execAsync(`git worktree add "${worktreePath}" "${branch}"`, { cwd: workspacePath });
+      } catch (e2) {
+        const err = e2 as { stderr?: string; message?: string };
+        throw new Error(err.stderr?.trim() || err.message || 'git worktree add failed');
+      }
+    }
+    return worktreePath;
+  });
+
+  ipcMain.handle('worktree:remove', async (_event, { worktreePath }: { worktreePath: string }) => {
+    try {
+      await execAsync(`git worktree remove "${worktreePath}" --force`);
+    } catch {
+      // Fallback: remove the directory directly
+      try { fs.rmSync(worktreePath, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+  });
+
+  ipcMain.handle('worktree:confirm-remove', async (event, { branch }: { branch: string }) => {
+    const win = BrowserWindow.fromWebContents(event.sender)!;
+    const result = await dialog.showMessageBox(win, {
+      type: 'question',
+      buttons: ['Remove worktree', 'Keep worktree'],
+      defaultId: 1,
+      cancelId: 1,
+      message: `Remove worktree for "${branch}"?`,
+      detail: "The worktree directory and its uncommitted files will be deleted.",
+    });
+    return result.response === 0;
+  });
 
   ipcMain.handle('git:branch', async (event, { workspacePath }: { workspacePath: string }) => {
     const win = BrowserWindow.fromWebContents(event.sender);

@@ -7,8 +7,16 @@ contextBridge.exposeInMainWorld('api', {
   reorderWorkspaces: (ids: string[]) => ipcRenderer.invoke('workspaces:reorder', { ids }),
   setWorkspaceColor: (id: string, color: string) => ipcRenderer.invoke('workspaces:set-color', { id, color }),
   openFolderDialog: () => ipcRenderer.invoke('dialog:openFolder'),
+  discoverWorkspaces: (folderPath: string) => ipcRenderer.invoke('workspaces:discover', { folderPath }),
   saveLog: (content: string, filename: string) => ipcRenderer.invoke('dialog:save-log', { content, filename }),
   openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
+
+  createWorktree: (workspacePath: string, branch: string) =>
+    ipcRenderer.invoke('worktree:create', { workspacePath, branch }),
+  removeWorktree: (worktreePath: string) =>
+    ipcRenderer.invoke('worktree:remove', { worktreePath }),
+  confirmRemoveWorktree: (branch: string) =>
+    ipcRenderer.invoke('worktree:confirm-remove', { branch }),
 
   getBranch: (workspacePath: string) => ipcRenderer.invoke('git:branch', { workspacePath }),
 
