@@ -1,19 +1,27 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+
 interface TerminalProps {
   sessionId: string;
   workspacePath: string;
-  isActive: boolean;
+  hidden: boolean;
   fontFamily: string;
   fontSize: number;
+  restartCount: number;
+  onRestart: () => void;
+  onInput: (data: string) => void;
 }
 
-export function Terminal({ sessionId, workspacePath, isActive, fontFamily, fontSize }: TerminalProps) {
+export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSize, restartCount, onRestart, onInput }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  // Ref so onInput changes (e.g. broadcast toggle) don't recreate the PTY
+  const onInputRef = useRef(onInput);
+  onInputRef.current = onInput;
+  const [exited, setExited] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -42,8 +50,8 @@ export function Terminal({ sessionId, workspacePath, isActive, fontFamily, fontS
     const { cols, rows } = xterm;
     window.api.ptyCreate(sessionId, workspacePath, cols, rows);
 
-    xterm.onData(data => window.api.ptyWrite(sessionId, data));
-    xterm.onResize(({ cols, rows }) => window.api.ptyResize(sessionId, cols, rows));
+    xterm.onData((data: string) => onInputRef.current(data));
+    xterm.onResize(({ cols, rows }: { cols: number; rows: number }) => window.api.ptyResize(sessionId, cols, rows));
 
     const cleanupData = window.api.onPtyData((id, data) => {
       if (id === sessionId) xterm.write(data);
@@ -59,9 +67,14 @@ export function Terminal({ sessionId, workspacePath, isActive, fontFamily, fontS
       window.api.ptyKill(sessionId);
       xterm.dispose();
     };
-  }, [sessionId, workspacePath]);
+  }, [sessionId, workspacePath, restartCount]);
 
-  // Apply font changes live to existing terminal instances
+  useEffect(() => { setExited(false); }, [restartCount]);
+
+  useEffect(() => {
+    return window.api.onPtyExit(id => { if (id === sessionId) setExited(true); });
+  }, [sessionId]);
+
   useEffect(() => {
     if (!xtermRef.current) return;
     xtermRef.current.options.fontFamily = fontFamily;
@@ -70,16 +83,22 @@ export function Terminal({ sessionId, workspacePath, isActive, fontFamily, fontS
   }, [fontFamily, fontSize]);
 
   useEffect(() => {
-    if (!isActive) return;
+    if (hidden) return;
     const id = setTimeout(() => fitAddonRef.current?.fit(), 50);
     return () => clearTimeout(id);
-  }, [isActive]);
+  }, [hidden]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{ display: isActive ? 'flex' : 'none', height: '100%', width: '100%' }}
-    />
+    <div style={{ display: hidden ? 'none' : 'flex', height: '100%', width: '100%', flexDirection: 'column', position: 'relative' }}>
+      <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
+      {exited && (
+        <div className="session-ended-banner">
+          <span className="session-ended-label">⊘ Session ended</span>
+          <button type="button" className="session-restart-btn" onClick={onRestart}>
+            ↺ Restart
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
-

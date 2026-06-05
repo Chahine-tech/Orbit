@@ -6,7 +6,11 @@ declare global {
       getWorkspaces: () => Promise<Workspace[]>;
       addWorkspace: (folderPath: string) => Promise<Workspace>;
       removeWorkspace: (id: string) => Promise<void>;
+      reorderWorkspaces: (ids: string[]) => Promise<void>;
+      setWorkspaceColor: (id: string, color: string) => Promise<void>;
       openFolderDialog: () => Promise<string | null>;
+      saveLog: (content: string, filename: string) => Promise<void>;
+      openExternal: (url: string) => Promise<void>;
       getBranch: (workspacePath: string) => Promise<string | null>;
       getTabsState: () => Promise<{ activeId: string | null; tabs: Record<string, Tab[]>; activeTabId: Record<string, string> } | null>;
       saveTabsState: (state: { activeId: string | null; tabs: Record<string, Tab[]>; activeTabId: Record<string, string> }) => Promise<void>;
@@ -20,6 +24,7 @@ declare global {
       onPtyExit: (callback: (workspaceId: string) => void) => () => void;
       onBranchChange: (callback: (workspacePath: string, branch: string | null) => void) => () => void;
       onShortcut: (callback: (action: string, payload: Record<string, unknown>) => void) => () => void;
+      onUpdateAvailable: (callback: (version: string, url: string) => void) => () => void;
     };
   }
 }

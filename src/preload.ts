@@ -4,7 +4,11 @@ contextBridge.exposeInMainWorld('api', {
   getWorkspaces: () => ipcRenderer.invoke('workspaces:get'),
   addWorkspace: (folderPath: string) => ipcRenderer.invoke('workspaces:add', { folderPath }),
   removeWorkspace: (id: string) => ipcRenderer.invoke('workspaces:remove', { id }),
+  reorderWorkspaces: (ids: string[]) => ipcRenderer.invoke('workspaces:reorder', { ids }),
+  setWorkspaceColor: (id: string, color: string) => ipcRenderer.invoke('workspaces:set-color', { id, color }),
   openFolderDialog: () => ipcRenderer.invoke('dialog:openFolder'),
+  saveLog: (content: string, filename: string) => ipcRenderer.invoke('dialog:save-log', { content, filename }),
+  openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
 
   getBranch: (workspacePath: string) => ipcRenderer.invoke('git:branch', { workspacePath }),
 
@@ -49,5 +53,12 @@ contextBridge.exposeInMainWorld('api', {
       callback(data.action, data);
     ipcRenderer.on('shortcut', handler);
     return () => ipcRenderer.removeListener('shortcut', handler);
+  },
+
+  onUpdateAvailable: (callback: (version: string, url: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, { version, url }: { version: string; url: string }) =>
+      callback(version, url);
+    ipcRenderer.on('update:available', handler);
+    return () => ipcRenderer.removeListener('update:available', handler);
   },
 });

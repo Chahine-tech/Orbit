@@ -190,6 +190,59 @@ body {
   outline: none;
 }
 
+/* ── Sidebar search & drag ───────────────── */
+
+.sidebar-search-wrapper { padding: 6px 8px 0; }
+
+.sidebar-search {
+  width: 100%;
+  background: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  border-radius: 5px;
+  color: #aaa;
+  font-size: 12px;
+  padding: 5px 8px;
+  outline: none;
+}
+.sidebar-search:focus { border-color: #444; color: #e0e0e0; }
+.sidebar-search::placeholder { color: #444; }
+
+.workspace-item.drag-over { background: #2a2a2a; outline: 1px dashed #444; }
+.workspace-item[draggable="true"] { cursor: grab; }
+.workspace-item[draggable="true"]:active { cursor: grabbing; }
+
+.sidebar-empty-filter { font-size: 11px; color: #444; padding: 8px 10px; }
+
+/* ── Tab exited state ────────────────────── */
+
+.tab.exited { opacity: 0.7; }
+.tab-icon-exited { color: #f87171; opacity: 1 !important; }
+
+/* ── Session ended banner ────────────────── */
+
+.session-ended-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: #1e1e1e;
+  border-top: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.session-ended-label { font-size: 12px; color: #666; }
+
+.session-restart-btn {
+  background: #272727;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #aaa;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.session-restart-btn:hover { background: #2e2e2e; color: #e0e0e0; border-color: #6366f1; }
+
 /* ── Settings modal ──────────────────────── */
 
 .settings-overlay {
@@ -339,3 +392,179 @@ body {
   font-family: "Menlo", "Monaco", monospace;
   color: #888;
 }
+
+/* ── Onboarding empty state ──────────────────── */
+
+.onboarding {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  text-align: center;
+  padding: 40px;
+  color: #555;
+}
+
+.onboarding-logo {
+  font-size: 52px;
+  color: #6366f1;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.onboarding-title {
+  font-size: 30px;
+  font-weight: 700;
+  color: #e0e0e0;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+.onboarding-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 28px;
+  line-height: 1.7;
+}
+
+.onboarding-add-btn {
+  padding: 10px 26px;
+  background: #6366f1;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 32px;
+  transition: background 0.15s;
+}
+.onboarding-add-btn:hover { background: #5355d8; }
+
+.onboarding-tools {
+  font-size: 12px;
+  color: #555;
+  margin-bottom: 20px;
+  line-height: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboarding-tools code {
+  background: #252525;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-family: "Menlo", "Monaco", monospace;
+  font-size: 11px;
+  color: #aaa;
+}
+
+.onboarding-hint {
+  display: block;
+  color: #444;
+  font-size: 11px;
+}
+
+.onboarding-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #555;
+}
+
+.onboarding-shortcuts kbd {
+  background: #252525;
+  border: 1px solid #333;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-family: "Menlo", "Monaco", monospace;
+  color: #888;
+}
+
+.onboarding-shortcuts .dot { color: #333; }
+
+/* ── Update banner ───────────────────────────── */
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  background: #1a1a30;
+  border-bottom: 1px solid #2e2e5a;
+  font-size: 12px;
+  color: #a5b4fc;
+  flex-shrink: 0;
+}
+
+.update-link {
+  background: none;
+  border: none;
+  color: #818cf8;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.update-link:hover { color: #a5b4fc; }
+
+.update-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+}
+.update-dismiss:hover { color: #999; }
+
+/* ── Broadcast & split header buttons ────────── */
+
+.icon-btn.broadcast-active { color: #f59e0b; background: #27200a; }
+.icon-btn.split-active { color: #6366f1; background: #1e1e2e; }
+
+/* ── Multi-pane split layout ─────────────────── */
+
+.pane-container { overflow: hidden; }
+
+.pane-horizontal { flex-direction: row; }
+.pane-vertical   { flex-direction: column; }
+
+.pane-divider {
+  width: 1px;
+  background: #2a2a2a;
+  flex-shrink: 0;
+}
+
+.pane-secondary {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane-close-btn {
+  position: absolute;
+  top: 5px;
+  right: 8px;
+  z-index: 10;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #555;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.pane-close-btn:hover { color: #f87171; border-color: #f87171; background: #2a1a1a; }

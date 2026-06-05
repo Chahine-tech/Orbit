@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { get } from 'node:https';
 import started from 'electron-squirrel-startup';
 import * as pty from 'node-pty';
 
@@ -14,6 +15,7 @@ interface Workspace {
   id: string;
   name: string;
   path: string;
+  color?: string;
 }
 
 function getWorkspacesFile() {
@@ -57,6 +59,39 @@ async function getBranchForPath(workspacePath: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+// Numeric semver comparison so "1.10.0" > "1.9.0" works correctly
+function semverGt(a: string, b: string): boolean {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] ?? 0) > (pb[i] ?? 0)) return true;
+    if ((pa[i] ?? 0) < (pb[i] ?? 0)) return false;
+  }
+  return false;
+}
+
+function checkForUpdates(win: BrowserWindow): void {
+  get({
+    hostname: 'api.github.com',
+    path: '/repos/Chahine-tech/orbit/releases/latest',
+    headers: { 'User-Agent': `Orbit/${app.getVersion()}` },
+  }, (res) => {
+    if (res.statusCode !== 200) { res.resume(); return; }
+    let raw = '';
+    res.on('data', (chunk: Buffer) => { raw += chunk; });
+    res.on('end', () => {
+      try {
+        const { tag_name, html_url } = JSON.parse(raw) as { tag_name: string; html_url: string };
+        const latest = tag_name.replace(/^v/, '');
+        const current = app.getVersion();
+        if (latest && semverGt(latest, current)) {
+          win.webContents.send('update:available', { version: latest, url: html_url });
+        }
+      } catch { /* ignore parse errors / missing releases */ }
+    });
+  }).on('error', () => { /* no network or repo not published yet */ });
 }
 
 const ptyProcesses = new Map<string, pty.IPty>();
@@ -150,7 +185,11 @@ const createWindow = () => {
     win.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
 
-  win.webContents.on('did-finish-load', () => win.webContents.closeDevTools());
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.closeDevTools();
+    // Check for updates 5s after load so the UI is fully ready
+    setTimeout(() => checkForUpdates(win), 5000);
+  });
 
   return win;
 };
@@ -203,10 +242,38 @@ app.whenReady().then(() => {
     return result.canceled ? null : result.filePaths[0];
   });
 
+  ipcMain.handle('dialog:save-log', async (event, { content, filename }: { content: string; filename: string }) => {
+    const win = BrowserWindow.fromWebContents(event.sender)!;
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath: filename,
+      filters: [
+        { name: 'Text', extensions: ['txt'] },
+        { name: 'Markdown', extensions: ['md'] },
+      ],
+    });
+    if (!result.canceled && result.filePath) {
+      fs.writeFileSync(result.filePath, content, 'utf-8');
+    }
+  });
+
+  ipcMain.handle('shell:open-external', (_event, url: string) => shell.openExternal(url));
+
   ipcMain.handle('git:branch', async (event, { workspacePath }: { workspacePath: string }) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) watchBranch(workspacePath, win);
     return getBranchForPath(workspacePath);
+  });
+
+  ipcMain.handle('workspaces:reorder', (_, { ids }: { ids: string[] }) => {
+    const workspaces = loadWorkspaces();
+    const reordered = ids.map(id => workspaces.find(w => w.id === id)).filter((w): w is Workspace => !!w);
+    saveWorkspaces(reordered);
+  });
+
+  ipcMain.handle('workspaces:set-color', (_, { id, color }: { id: string; color: string }) => {
+    const workspaces = loadWorkspaces();
+    const ws = workspaces.find(w => w.id === id);
+    if (ws) { ws.color = color; saveWorkspaces(workspaces); }
   });
 
   ipcMain.handle('settings:get', () => loadSettings());
@@ -218,8 +285,8 @@ app.whenReady().then(() => {
   ipcMain.handle('pty:create', (event, { workspaceId, workspacePath, cols, rows }: { workspaceId: string; workspacePath: string; cols: number; rows: number }) => {
     ptyProcesses.get(workspaceId)?.kill();
 
-    const { shell } = loadSettings();
-    const ptyProcess = pty.spawn(shell || DEFAULT_SHELL, [], {
+    const { shell: configuredShell } = loadSettings();
+    const ptyProcess = pty.spawn(configuredShell || DEFAULT_SHELL, [], {
       name: 'xterm-color',
       cols,
       rows,
