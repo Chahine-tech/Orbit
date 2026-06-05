@@ -11,7 +11,7 @@ const FONT_FAMILIES = [
   { label: 'Courier New',    value: '"Courier New", monospace' },
 ];
 
-const SHELL_PRESETS = ['claude', 'zsh', 'bash', 'fish'];
+const COMMAND_PRESETS = ['claude', 'codex', 'aider', 'zsh', 'bash'];
 
 const SHORTCUTS = [
   { label: 'New tab',            keys: ['⌘', 'T'] },
@@ -78,7 +78,7 @@ export function SettingsPanel({ settings, onClose, onChange }: SettingsPanelProp
 
         {/* ── Shell ── */}
         <div className="settings-section">
-          <div className="settings-section-title">SHELL</div>
+          <div className="settings-section-title">COMMAND</div>
           <div className="settings-row">
             <span className="settings-label">Command</span>
             <input
@@ -90,7 +90,7 @@ export function SettingsPanel({ settings, onClose, onChange }: SettingsPanelProp
             />
           </div>
           <div className="settings-presets">
-            {SHELL_PRESETS.map(s => (
+            {COMMAND_PRESETS.map(s => (
               <button
                 key={s}
                 type="button"
@@ -101,7 +101,7 @@ export function SettingsPanel({ settings, onClose, onChange }: SettingsPanelProp
               </button>
             ))}
           </div>
-          <p className="settings-hint">Applied to new sessions — restart existing tabs to use the new shell.</p>
+          <p className="settings-hint">Applied to new sessions — restart existing tabs to use the new command.</p>
         </div>
 
         {/* ── Keyboard shortcuts ── */}
