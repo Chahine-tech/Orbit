@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Repo {
   name: string;
@@ -16,11 +16,14 @@ interface WorkspaceDiscoveryProps {
 export function WorkspaceDiscovery({ folderPath, repos, onAdd, onAddParent, onCancel }: WorkspaceDiscoveryProps) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(repos.map(r => r.path)));
 
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
+
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancelRef.current(); };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [onCancel]);
+  }, []);
 
   const toggle = (repoPath: string) => {
     setSelected(prev => {

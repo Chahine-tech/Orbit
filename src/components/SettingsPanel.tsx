@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Settings } from '../types';
 
 const FONT_FAMILIES = [
@@ -26,11 +26,14 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ settings, onClose, onChange }: SettingsPanelProps) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current(); };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
+  }, []);
 
   const set = (updates: Partial<Settings>) => onChange({ ...settings, ...updates });
 

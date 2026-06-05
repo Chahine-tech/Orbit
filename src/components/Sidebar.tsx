@@ -7,6 +7,7 @@ interface SidebarProps {
   workspaces: Workspace[];
   activeId: string | null;
   connectedIds: Set<string>;
+  activeIds: Set<string>;
   compact: boolean;
   onSelect: (id: string) => void;
   onAdd: () => void;
@@ -17,7 +18,7 @@ interface SidebarProps {
   onToggleCompact: () => void;
 }
 
-export function Sidebar({ workspaces, activeId, connectedIds, compact, onSelect, onAdd, onRemove, onReorder, onSetColor, onSettings, onToggleCompact }: SidebarProps) {
+export function Sidebar({ workspaces, activeId, connectedIds, activeIds, compact, onSelect, onAdd, onRemove, onReorder, onSetColor, onSettings, onToggleCompact }: SidebarProps) {
   const [filter, setFilter] = useState('');
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const dragRef = useRef<string | null>(null);
@@ -64,6 +65,7 @@ export function Sidebar({ workspaces, activeId, connectedIds, compact, onSelect,
       <div className="workspace-list">
         {filtered.map(ws => {
           const connected = connectedIds.has(ws.id);
+          const pulsing = activeIds.has(ws.id);
           const dotColor = connected ? (ws.color ?? '#4ade80') : '#404040';
           return (
             <div
@@ -84,7 +86,7 @@ export function Sidebar({ workspaces, activeId, connectedIds, compact, onSelect,
               onDragEnd={() => { dragRef.current = null; setDragOverId(null); }}
             >
               <span
-                className="status-dot"
+                className={`status-dot${pulsing ? ' pulsing' : ''}`}
                 style={{ background: dotColor, boxShadow: connected ? `0 0 4px ${dotColor}66` : 'none', cursor: connected ? 'pointer' : 'default' }}
                 title={connected && !compact ? 'Click to change color' : undefined}
                 onClick={e => cycleColor(ws, e)}

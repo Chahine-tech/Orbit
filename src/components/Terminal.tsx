@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -10,18 +10,18 @@ interface TerminalProps {
   fontFamily: string;
   fontSize: number;
   restartCount: number;
+  exited: boolean;
   onRestart: () => void;
   onInput: (data: string) => void;
 }
 
-export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSize, restartCount, onRestart, onInput }: TerminalProps) {
+export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSize, restartCount, exited, onRestart, onInput }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   // Ref so onInput changes (e.g. broadcast toggle) don't recreate the PTY
   const onInputRef = useRef(onInput);
   onInputRef.current = onInput;
-  const [exited, setExited] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -62,18 +62,13 @@ export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSiz
 
     return () => {
       xtermRef.current = null;
+      fitAddonRef.current = null;
       cleanupData();
       observer.disconnect();
       window.api.ptyKill(sessionId);
       xterm.dispose();
     };
   }, [sessionId, workspacePath, restartCount]);
-
-  useEffect(() => { setExited(false); }, [restartCount]);
-
-  useEffect(() => {
-    return window.api.onPtyExit(id => { if (id === sessionId) setExited(true); });
-  }, [sessionId]);
 
   useEffect(() => {
     if (!xtermRef.current) return;

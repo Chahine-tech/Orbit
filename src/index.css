@@ -61,7 +61,13 @@ body {
 .workspace-item.active { background: #272727; color: #fff; }
 .workspace-item:hover .remove-btn { opacity: 1; }
 
-.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; transition: transform 0.2s; }
+
+@keyframes dot-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50%       { transform: scale(1.5); filter: brightness(1.5); }
+}
+.status-dot.pulsing { animation: dot-pulse 1.4s ease-in-out infinite; }
 .status-dot.connected { background: #4ade80; box-shadow: 0 0 4px #4ade8066; }
 .status-dot.idle { background: #404040; }
 

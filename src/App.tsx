@@ -246,6 +246,14 @@ export function App() {
   // Per-session output log for export (capped at 5 MB per session)
   const logBuffer = useRef<Record<string, string>>({});
 
+  // Activity pulse: track last PTY data timestamp per session (ref = no re-render on every keystroke)
+  const lastActiveRef = useRef<Record<string, number>>({});
+  const [activeSessions, setActiveSessions] = useState<Set<string>>(new Set());
+
+  // stateRef: avoids stale closures in long-lived subscriptions and intervals
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   useEffect(() => {
     Promise.all([
       window.api.getWorkspaces(),
@@ -272,14 +280,14 @@ export function App() {
     });
   }, []);
 
+  // Only the active workspace's path matters — workspace path is immutable once added
+  const activePath = workspaces.find(w => w.id === activeId)?.path ?? null;
   useEffect(() => {
-    if (!activeId) return;
-    const ws = workspaces.find(w => w.id === activeId);
-    if (!ws) return;
-    window.api.getBranch(ws.path).then(branch => {
-      dispatch({ type: 'branch', path: ws.path, branch });
+    if (!activePath) return;
+    window.api.getBranch(activePath).then(branch => {
+      dispatch({ type: 'branch', path: activePath, branch });
     });
-  }, [activeId, workspaces]);
+  }, [activeId, activePath]);
 
   // Global PTY exit → update tab status badge
   useEffect(() => {
@@ -288,14 +296,35 @@ export function App() {
     });
   }, []);
 
-  // Accumulate terminal output for session log export
+  // Accumulate terminal output for session log export + track activity timestamps
   useEffect(() => {
     return window.api.onPtyData((sessionId, data) => {
       const prev = logBuffer.current[sessionId] ?? '';
       if (prev.length < 5 * 1024 * 1024) {
         logBuffer.current[sessionId] = prev + data;
       }
+      lastActiveRef.current[sessionId] = Date.now();
     });
+  }, []);
+
+  // Derive active workspace IDs at 500ms cadence (max 2 re-renders/s regardless of output volume)
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      const next = new Set<string>();
+      Object.entries(lastActiveRef.current).forEach(([sessionId, ts]) => {
+        if (now - ts > 2000) return;
+        const wsId = Object.keys(stateRef.current.tabs).find(wid =>
+          stateRef.current.tabs[wid]?.some(t => t.id === sessionId || t.splitSessionId === sessionId)
+        );
+        if (wsId) next.add(wsId);
+      });
+      setActiveSessions(prev => {
+        if (prev.size === next.size && [...next].every(id => prev.has(id))) return prev;
+        return next;
+      });
+    }, 500);
+    return () => clearInterval(id);
   }, []);
 
   // Update notification from main process
@@ -453,10 +482,7 @@ export function App() {
     window.api.saveSettings(updated);
   };
 
-  // Keyboard shortcuts — stateRef avoids stale closures in the long-lived subscription
-  const stateRef = useRef(state);
-  stateRef.current = state;
-
+  // Keyboard shortcuts
   useEffect(() => {
     return window.api.onShortcut((action, payload) => {
       const { activeId, activeTabId, tabs } = stateRef.current;
@@ -482,6 +508,11 @@ export function App() {
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const activeWorkspace = workspaces.find(w => w.id === activeId);
+  const activeWorkspaceIds = activeSessions.size > 0
+    ? new Set(workspaces.filter(ws => (tabs[ws.id] ?? []).some(t =>
+        activeSessions.has(t.id) || (t.splitSessionId ? activeSessions.has(t.splitSessionId) : false)
+      )).map(ws => ws.id))
+    : new Set<string>();
   const activeTab = activeWorkspace
     ? (tabs[activeWorkspace.id] ?? []).find(t => t.id === activeTabId[activeWorkspace.id])
     : undefined;
@@ -508,6 +539,7 @@ export function App() {
         workspaces={workspaces}
         activeId={activeId}
         connectedIds={connectedIds}
+        activeIds={activeWorkspaceIds}
         compact={settings.sidebarCompact}
         onSelect={handleSelect}
         onAdd={handleAdd}
@@ -622,6 +654,7 @@ export function App() {
                           fontFamily={settings.fontFamily}
                           fontSize={settings.fontSize}
                           restartCount={tab.restartCount ?? 0}
+                          exited={tabStatus[tab.id] === 'exited'}
                           onRestart={() => handleRestartTab(ws.id, tab.id)}
                           onInput={makeOnInput(ws.id, tab.id)}
                         />
@@ -643,6 +676,7 @@ export function App() {
                             fontFamily={settings.fontFamily}
                             fontSize={settings.fontSize}
                             restartCount={tab.splitRestartCount ?? 0}
+                            exited={tabStatus[tab.splitSessionId] === 'exited'}
                             onRestart={() => handleRestartSplit(ws.id, tab.id)}
                             onInput={makeOnInput(ws.id, tab.splitSessionId)}
                           />
@@ -659,6 +693,7 @@ export function App() {
                       fontFamily={settings.fontFamily}
                       fontSize={settings.fontSize}
                       restartCount={tab.restartCount ?? 0}
+                      exited={tabStatus[tab.id] === 'exited'}
                       onRestart={() => handleRestartTab(ws.id, tab.id)}
                       onInput={makeOnInput(ws.id, tab.id)}
                     />

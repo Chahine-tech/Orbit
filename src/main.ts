@@ -166,6 +166,10 @@ function buildMenu() {
 }
 
 const createWindow = () => {
+  const iconPath = path.join(app.getAppPath(), 'src', 'assets', 'icon.png');
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(iconPath);
+  }
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -177,6 +181,7 @@ const createWindow = () => {
     },
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#141414',
+    icon: iconPath,
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
