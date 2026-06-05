@@ -1,8 +1,8 @@
 {
-  "name": "claude-workspace",
-  "productName": "claude-workspace",
+  "name": "orbit",
+  "productName": "Orbit",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "Multi-workspace orchestrator for Claude Code sessions",
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {

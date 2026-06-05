@@ -14,7 +14,7 @@ export function Sidebar({ workspaces, activeId, connectedIds, onSelect, onAdd, o
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <span className="sidebar-title">Workspaces</span>
+        <span className="sidebar-title">Orbit</span>
         <button type="button" className="icon-btn" title="Settings" onClick={onSettings}>⚙</button>
       </div>
       <div className="section-label">PROJECTS</div>
