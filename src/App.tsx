@@ -346,6 +346,7 @@ export function App() {
     if (tab?.worktreePath && tab.worktreeBranch) {
       const shouldRemove = await window.api.confirmRemoveWorktree(tab.worktreeBranch);
       if (shouldRemove) {
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         await window.api.removeWorktree(tab.worktreePath).catch(() => {});
       }
     }
@@ -408,13 +409,16 @@ export function App() {
     const ws = workspaces.find(w => w.id === workspaceId);
     const tab = (tabs[workspaceId] ?? []).find(t => t.id === tabId);
     const raw = logBuffer.current[tabId] ?? '';
+    /* eslint-disable no-control-regex */
     const clean = raw
       .replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '')
-      .replace(/\x1B[()][0-9A-Za-z]/g, '')
+      .replace(/\x1B[()][0-9A-Za-z]/g, '');
+    /* eslint-enable no-control-regex */
+    const cleanFinal = clean
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n');
     const filename = `${ws?.name ?? 'session'}-${tab?.label ?? 'log'}.txt`;
-    await window.api.saveLog(clean, filename);
+    await window.api.saveLog(cleanFinal, filename);
   };
 
   const handleSelect = (id: string) => {

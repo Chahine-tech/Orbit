@@ -9,6 +9,7 @@
     "sourceMap": true,
     "outDir": "dist",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "resolveJsonModule": true,
     "jsx": "react-jsx"
   }

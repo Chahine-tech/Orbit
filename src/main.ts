@@ -257,12 +257,14 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('dialog:openFolder', async (event) => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const win = BrowserWindow.fromWebContents(event.sender)!;
     const result = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });
     return result.canceled ? null : result.filePaths[0];
   });
 
   ipcMain.handle('dialog:save-log', async (event, { content, filename }: { content: string; filename: string }) => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const win = BrowserWindow.fromWebContents(event.sender)!;
     const result = await dialog.showSaveDialog(win, {
       defaultPath: filename,
@@ -313,6 +315,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('worktree:confirm-remove', async (event, { branch }: { branch: string }) => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const win = BrowserWindow.fromWebContents(event.sender)!;
     const result = await dialog.showMessageBox(win, {
       type: 'question',

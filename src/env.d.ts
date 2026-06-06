@@ -1,5 +1,6 @@
 import type { Workspace, Tab, Settings } from './types';
 
+
 declare global {
   interface Window {
     api: {
