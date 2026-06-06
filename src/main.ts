@@ -96,6 +96,41 @@ function checkForUpdates(win: BrowserWindow): void {
 
 const ptyProcesses = new Map<string, pty.IPty>();
 const branchWatchers = new Map<string, fs.FSWatcher>();
+const logStreams = new Map<string, fs.WriteStream>();
+
+function getLogsDir() {
+  const dir = path.join(app.getPath('userData'), 'logs');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function getStatsFile() {
+  return path.join(app.getPath('userData'), 'stats.json');
+}
+
+/* eslint-disable no-control-regex */
+function stripAnsiForLog(data: string): string {
+  return data
+    .replace(/\x1b\[[^a-zA-Z]*[a-zA-Z]/g, '')
+    .replace(/\x1b[()][0-9A-Za-z]/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+}
+/* eslint-enable no-control-regex */
+
+function loadLogIndex(logsDir: string): Record<string, { workspacePath: string; workspaceName: string; createdAt: string }> {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(logsDir, '_index.json'), 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+
+function saveLogIndex(logsDir: string, index: Record<string, { workspacePath: string; workspaceName: string; createdAt: string }>) {
+  try {
+    fs.writeFileSync(path.join(logsDir, '_index.json'), JSON.stringify(index, null, 2));
+  } catch { /* non-fatal */ }
+}
 
 function watchBranch(workspacePath: string, win: BrowserWindow) {
   if (branchWatchers.has(workspacePath)) return;
@@ -372,6 +407,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('pty:create', (event, { workspaceId, workspacePath, cols, rows, extraArgs }: { workspaceId: string; workspacePath: string; cols: number; rows: number; extraArgs?: string[] }) => {
+    // Close existing log stream for this session (restart case)
+    logStreams.get(workspaceId)?.end();
+    logStreams.delete(workspaceId);
     ptyProcesses.get(workspaceId)?.kill();
 
     const { shell: configuredShell } = loadSettings();
@@ -385,9 +423,27 @@ app.whenReady().then(() => {
 
     const win = BrowserWindow.fromWebContents(event.sender);
 
-    ptyProcess.onData(data => win?.webContents.send('pty:data', { workspaceId, data }));
+    // Open log file for this session
+    try {
+      const logsDir = getLogsDir();
+      const logPath = path.join(logsDir, `${workspaceId}.log`);
+      const isRestart = fs.existsSync(logPath);
+      const stream = fs.createWriteStream(logPath, { flags: 'a' });
+      if (isRestart) stream.write(`\n--- restarted at ${new Date().toISOString()} ---\n`);
+      logStreams.set(workspaceId, stream);
+      const index = loadLogIndex(logsDir);
+      index[workspaceId] = { workspacePath, workspaceName: path.basename(workspacePath), createdAt: new Date().toISOString() };
+      saveLogIndex(logsDir, index);
+    } catch { /* non-fatal */ }
+
+    ptyProcess.onData(data => {
+      win?.webContents.send('pty:data', { workspaceId, data });
+      try { logStreams.get(workspaceId)?.write(stripAnsiForLog(data)); } catch { /* ignore */ }
+    });
     ptyProcess.onExit(() => {
       ptyProcesses.delete(workspaceId);
+      logStreams.get(workspaceId)?.end();
+      logStreams.delete(workspaceId);
       win?.webContents.send('pty:exit', { workspaceId });
     });
 
@@ -405,6 +461,61 @@ app.whenReady().then(() => {
   ipcMain.handle('pty:kill', (_, { workspaceId }: { workspaceId: string }) => {
     ptyProcesses.get(workspaceId)?.kill();
     ptyProcesses.delete(workspaceId);
+    logStreams.get(workspaceId)?.end();
+    logStreams.delete(workspaceId);
+  });
+
+  ipcMain.handle('stats:load', () => {
+    try { return JSON.parse(fs.readFileSync(getStatsFile(), 'utf-8')); } catch { return {}; }
+  });
+
+  ipcMain.handle('stats:save', (_, stats: unknown) => {
+    try { fs.writeFileSync(getStatsFile(), JSON.stringify(stats, null, 2)); } catch { /* ignore */ }
+  });
+
+  ipcMain.handle('logs:list', () => {
+    try {
+      const logsDir = getLogsDir();
+      const index = loadLogIndex(logsDir);
+      return fs.readdirSync(logsDir)
+        .filter(f => f.endsWith('.log'))
+        .map(f => {
+          const sessionId = f.replace('.log', '');
+          const filePath = path.join(logsDir, f);
+          const stat = fs.statSync(filePath);
+          const meta = index[sessionId] ?? {};
+          return { sessionId, logPath: filePath, workspacePath: meta.workspacePath ?? '', workspaceName: meta.workspaceName ?? sessionId, createdAt: meta.createdAt ?? stat.mtime.toISOString(), size: stat.size };
+        })
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch { return []; }
+  });
+
+  ipcMain.handle('logs:search', (_, { query }: { query: string }) => {
+    if (!query.trim()) return [];
+    try {
+      const logsDir = getLogsDir();
+      const index = loadLogIndex(logsDir);
+      const lowerQuery = query.toLowerCase();
+      const results = fs.readdirSync(logsDir)
+        .filter(f => f.endsWith('.log'))
+        .flatMap(f => {
+          const sessionId = f.replace('.log', '');
+          try {
+            const lines = fs.readFileSync(path.join(logsDir, f), 'utf-8').split('\n');
+            const matches = lines.flatMap((line, i) =>
+              line.toLowerCase().includes(lowerQuery) ? [{ line: line.slice(0, 200), lineNumber: i + 1 }] : []
+            );
+            if (!matches.length) return [];
+            const meta = index[sessionId] ?? {};
+            return [{ sessionId, logPath: path.join(logsDir, f), workspaceName: meta.workspaceName ?? sessionId, workspacePath: meta.workspacePath ?? '', createdAt: meta.createdAt ?? new Date().toISOString(), matches: matches.slice(0, 3) }];
+          } catch { return []; }
+        });
+      return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch { return []; }
+  });
+
+  ipcMain.handle('logs:open', (_, { logPath }: { logPath: string }) => {
+    shell.openPath(logPath);
   });
 
   app.on('activate', () => {

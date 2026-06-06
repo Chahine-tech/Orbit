@@ -32,3 +32,26 @@ export const DEFAULT_SETTINGS: Settings = {
   autoStart: false,
   sidebarCompact: false,
 };
+
+export interface WorkspaceStats {
+  cost: number;
+  tokens: number;
+}
+
+export interface LogEntry {
+  sessionId: string;
+  logPath: string;
+  workspacePath: string;
+  workspaceName: string;
+  createdAt: string;
+  size: number;
+}
+
+export interface LogSearchResult {
+  sessionId: string;
+  logPath: string;
+  workspaceName: string;
+  workspacePath: string;
+  createdAt: string;
+  matches: { line: string; lineNumber: number }[];
+}

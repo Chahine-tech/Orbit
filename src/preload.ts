@@ -69,4 +69,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('update:available', handler);
     return () => ipcRenderer.removeListener('update:available', handler);
   },
+
+  statsLoad: () => ipcRenderer.invoke('stats:load'),
+  statsSave: (stats: unknown) => ipcRenderer.invoke('stats:save', stats),
+  logsList: () => ipcRenderer.invoke('logs:list'),
+  logsSearch: (query: string) => ipcRenderer.invoke('logs:search', { query }),
+  logsOpen: (logPath: string) => ipcRenderer.invoke('logs:open', { logPath }),
 });

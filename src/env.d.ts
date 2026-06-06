@@ -1,4 +1,4 @@
-import type { Workspace, Tab, Settings } from './types';
+import type { Workspace, Tab, Settings, WorkspaceStats, LogEntry, LogSearchResult } from './types';
 
 
 declare global {
@@ -30,6 +30,11 @@ declare global {
       onBranchChange: (callback: (workspacePath: string, branch: string | null) => void) => () => void;
       onShortcut: (callback: (action: string, payload: Record<string, unknown>) => void) => () => void;
       onUpdateAvailable: (callback: (version: string, url: string) => void) => () => void;
+      statsLoad: () => Promise<Record<string, WorkspaceStats>>;
+      statsSave: (stats: Record<string, WorkspaceStats>) => Promise<void>;
+      logsList: () => Promise<LogEntry[]>;
+      logsSearch: (query: string) => Promise<LogSearchResult[]>;
+      logsOpen: (logPath: string) => Promise<void>;
     };
   }
 }

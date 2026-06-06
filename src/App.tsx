@@ -3,9 +3,10 @@ import { Sidebar } from './components/Sidebar';
 import { TabBar } from './components/TabBar';
 import { Terminal } from './components/Terminal';
 import { SettingsPanel } from './components/SettingsPanel';
+import { HistoryPanel } from './components/HistoryPanel';
 import { WorkspaceDiscovery } from './components/WorkspaceDiscovery';
 import { DEFAULT_SETTINGS } from './types';
-import type { Workspace, Tab, Settings } from './types';
+import type { Workspace, Tab, Settings, WorkspaceStats } from './types';
 
 // ─── State & reducer ─────────────────────────────────────────────────────────
 
@@ -242,6 +243,8 @@ export function App() {
   const [worktreeCreating, setWorktreeCreating] = useState(false);
   const [worktreeError, setWorktreeError] = useState('');
   const [discoveryState, setDiscoveryState] = useState<{ folderPath: string; repos: Array<{ name: string; path: string }> } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [workspaceStats, setWorkspaceStats] = useState<Record<string, WorkspaceStats>>({});
 
   // Per-session output log for export (capped at 5 MB per session)
   const logBuffer = useRef<Record<string, string>>({});
@@ -270,9 +273,11 @@ export function App() {
       window.api.getWorkspaces(),
       window.api.getTabsState(),
       window.api.getSettings(),
-    ]).then(([wsList, persisted, savedSettings]) => {
+      window.api.statsLoad(),
+    ]).then(([wsList, persisted, savedSettings, savedStats]) => {
       const merged = { ...DEFAULT_SETTINGS, ...savedSettings };
       setSettings(merged);
+      setWorkspaceStats(savedStats ?? {});
       dispatch({ type: 'init', workspaces: wsList, persisted, autoStart: merged.autoStart });
     });
   }, []);
@@ -321,6 +326,25 @@ export function App() {
       const text = data.replace(/\x1b\[[^a-zA-Z]*[a-zA-Z]/g, '');
       if (/auto.?compact|compacting.*context|context.*compact/i.test(text)) {
         setContextCompacted(prev => prev.has(sessionId) ? prev : new Set([...prev, sessionId]));
+      }
+
+      // Parse Claude Code session stats (cost + tokens) from end-of-session summary
+      const costMatch = text.match(/[Tt]otal\s+cost[^$\d]*\$?([\d.]+)/);
+      const tokenMatch = text.match(/[Tt]otal\s+tokens?[^\d]*([\d,]+)/);
+      if (costMatch || tokenMatch) {
+        const wsId = Object.keys(stateRef.current.tabs).find(wid =>
+          stateRef.current.tabs[wid]?.some(t => t.id === sessionId || t.splitSessionId === sessionId)
+        );
+        if (wsId) {
+          setWorkspaceStats(prev => {
+            const existing = prev[wsId] ?? { cost: 0, tokens: 0 };
+            const cost = costMatch ? existing.cost + parseFloat(costMatch[1]) : existing.cost;
+            const tokens = tokenMatch ? existing.tokens + parseInt(tokenMatch[1].replace(/,/g, ''), 10) : existing.tokens;
+            const next = { ...prev, [wsId]: { cost, tokens } };
+            window.api.statsSave(next);
+            return next;
+          });
+        }
       }
     });
   }, []);
@@ -594,6 +618,20 @@ export function App() {
               <span className="header-path">📁 {activeWorkspace.path}</span>
               {activeBranch && <span className="header-branch">⎇ {activeBranch}</span>}
               <div style={{ flex: 1 }} />
+              {workspaceStats[activeWorkspace.id] && (
+                <span className="header-stats" title={`${workspaceStats[activeWorkspace.id].tokens.toLocaleString()} tokens accumulated`}>
+                  ${workspaceStats[activeWorkspace.id].cost.toFixed(4)}
+                </span>
+              )}
+              <button
+                type="button"
+                className="icon-btn"
+                title="Session history"
+                style={{ fontSize: 13 }}
+                onClick={() => setHistoryOpen(true)}
+              >
+                🕐
+              </button>
               <button
                 type="button"
                 className="icon-btn"
@@ -715,8 +753,11 @@ export function App() {
                             compacted={contextCompacted.has(tab.splitSessionId)}
                             onRestart={() => handleRestartSplit(ws.id, tab.id)}
                             onResume={() => handleResumeTab(ws.id, tab.id)}
+                            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                             onDismissCompaction={() => setContextCompacted(prev => { const next = new Set(prev); next.delete(tab.splitSessionId!); return next; })}
+                            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                             onInput={makeOnInput(ws.id, tab.splitSessionId!)}
+                            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                             getResumeArgs={() => getAndClearResumeArgs(tab.splitSessionId!)}
                           />
                         </div>
@@ -753,6 +794,7 @@ export function App() {
           onChange={handleSettingsChange}
         />
       )}
+      {historyOpen && <HistoryPanel onClose={() => setHistoryOpen(false)} />}
       {discoveryState && (
         <WorkspaceDiscovery
           folderPath={discoveryState.folderPath}
