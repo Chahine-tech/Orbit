@@ -8,8 +8,6 @@ import { WorkspaceDiscovery } from './components/WorkspaceDiscovery';
 import { DEFAULT_SETTINGS } from './types';
 import type { Workspace, Tab, Settings, WorkspaceStats } from './types';
 
-// ─── State & reducer ─────────────────────────────────────────────────────────
-
 type TabStatus = 'running' | 'exited';
 
 type AppState = {
@@ -229,7 +227,6 @@ function newTab(workspaceId: string, existing: Tab[]): Tab {
   return { id: `${workspaceId}-${Date.now()}`, workspaceId, label: `Session ${existing.length + 1}`, restartCount: 0 };
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, initial);
