@@ -17,7 +17,12 @@ Most AI tools give you one context. Orbit gives you one context **per repo**, ea
 - **Worktree tabs** — create a git worktree + branch in one click (⎇); each tab runs an isolated clone of the repo so parallel AI agents never conflict
 - **Split pane** — split any tab horizontally (⊞) to run two sessions side by side
 - **Broadcast input** — send the same keystrokes to all sessions in a workspace simultaneously (⊕)
-- **Session logs** — export the full terminal output to `.txt` or `.md` (↓)
+- **Session resume** — when a session ends, resume it with `--continue` to pick up right where you left off, or restart fresh
+- **Context compaction detection** — Orbit watches for Claude Code's auto-compaction notice and shows a ⚡ badge on the tab + a dismissable banner, so you always know when context was trimmed
+- **Session history & search** — every session is logged to disk (ANSI-stripped); click 🕐 to browse all past sessions and search across them with full-text
+- **Token cost tracking** — accumulated cost per workspace parsed from Claude Code's end-of-session stats and shown live in the header
+- **Worktree auto-provisioning** — creating a worktree tab automatically copies `.env` files and runs `npm`/`yarn`/`pnpm install` in the new worktree
+- **Session logs** — export the current terminal output to `.txt` (↓)
 - **Live git branch** — current branch shown in the header, updates on checkout
 - **Tab rename** — double-click any tab to rename it
 - **Workspace colors** — click the status dot to cycle through accent colors
