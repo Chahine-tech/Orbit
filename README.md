@@ -4,6 +4,8 @@ A desktop workspace manager for AI coding CLIs — run isolated sessions per pro
 
 Works with any terminal-based AI tool: [Claude Code](https://claude.ai/code), [Codex CLI](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Aider](https://aider.chat), or a plain shell.
 
+![](.github/screenshot.png)
+
 ## What it does
 
 Most AI tools give you one context. Orbit gives you one context **per repo**, each running in a dedicated PTY. Switch between projects without losing context, open parallel sessions in tabs, and keep everything organized in one window.
