@@ -103,7 +103,12 @@ body {
   padding: 8px 16px; border-bottom: 1px solid #252525;
   font-size: 12px; color: #666; flex-shrink: 0;
   display: flex; align-items: center; gap: 10px;
+  -webkit-app-region: drag;
 }
+.workspace-header button,
+.workspace-header select,
+.workspace-header input,
+.workspace-header a { -webkit-app-region: no-drag; }
 .header-path { font-family: "Menlo", "Monaco", monospace; }
 
 /* .terminal-container replaced by .terminal-area (appended below) */
@@ -133,6 +138,7 @@ body {
   overflow-x: auto;
   flex-shrink: 0;
   scrollbar-width: none;
+  -webkit-app-region: drag;
 }
 .tab-bar::-webkit-scrollbar { display: none; }
 
@@ -148,6 +154,7 @@ body {
   border-bottom: 2px solid transparent;
   user-select: none;
   transition: color 0.1s;
+  -webkit-app-region: no-drag;
 }
 .tab:hover { color: #aaa; }
 .tab.active { color: #e0e0e0; border-bottom-color: #6366f1; }
@@ -170,6 +177,7 @@ body {
   background: none; border: none; color: #555;
   cursor: pointer; font-size: 18px; line-height: 1;
   padding: 4px 8px; border-radius: 4px; flex-shrink: 0;
+  -webkit-app-region: no-drag;
 }
 .tab-add:hover { background: #1e1e1e; color: #aaa; }
 

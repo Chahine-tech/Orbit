@@ -569,6 +569,7 @@ export function App() {
                 type="button"
                 className="icon-btn"
                 title="Export session log"
+                style={{ fontSize: 11 }}
                 onClick={() => handleExportLog(activeWorkspace.id, activeTabId[activeWorkspace.id] ?? '')}
               >
                 ↓

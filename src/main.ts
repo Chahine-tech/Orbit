@@ -166,7 +166,7 @@ function buildMenu() {
 }
 
 const createWindow = () => {
-  const iconPath = path.join(app.getAppPath(), 'src', 'assets', 'icon.png');
+  const iconPath = path.join(app.getAppPath(), 'src', 'assets', 'icon@1024.png');
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(iconPath);
   }
