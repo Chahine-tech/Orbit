@@ -26,8 +26,8 @@ contextBridge.exposeInMainWorld('api', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings: unknown) => ipcRenderer.invoke('settings:save', settings),
 
-  ptyCreate: (workspaceId: string, workspacePath: string, cols: number, rows: number) =>
-    ipcRenderer.invoke('pty:create', { workspaceId, workspacePath, cols, rows }),
+  ptyCreate: (workspaceId: string, workspacePath: string, cols: number, rows: number, extraArgs?: string[]) =>
+    ipcRenderer.invoke('pty:create', { workspaceId, workspacePath, cols, rows, extraArgs }),
   ptyWrite: (workspaceId: string, data: string) =>
     ipcRenderer.invoke('pty:write', { workspaceId, data }),
   ptyResize: (workspaceId: string, cols: number, rows: number) =>
