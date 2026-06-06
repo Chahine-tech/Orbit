@@ -21,7 +21,7 @@ declare global {
       saveTabsState: (state: { activeId: string | null; tabs: Record<string, Tab[]>; activeTabId: Record<string, string> }) => Promise<void>;
       getSettings: () => Promise<Settings>;
       saveSettings: (settings: Settings) => Promise<void>;
-      ptyCreate: (workspaceId: string, workspacePath: string, cols: number, rows: number) => Promise<void>;
+      ptyCreate: (workspaceId: string, workspacePath: string, cols: number, rows: number, extraArgs?: string[]) => Promise<void>;
       ptyWrite: (workspaceId: string, data: string) => Promise<void>;
       ptyResize: (workspaceId: string, cols: number, rows: number) => Promise<void>;
       ptyKill: (workspaceId: string) => Promise<void>;

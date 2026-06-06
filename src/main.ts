@@ -302,6 +302,25 @@ app.whenReady().then(() => {
         throw new Error(err.stderr?.trim() || err.message || 'git worktree add failed');
       }
     }
+
+    // Auto-provision: copy .env* files from parent workspace
+    try {
+      const envFiles = fs.readdirSync(workspacePath).filter(f => /^\.env/.test(f));
+      for (const envFile of envFiles) {
+        fs.copyFileSync(path.join(workspacePath, envFile), path.join(worktreePath, envFile));
+      }
+    } catch { /* non-fatal */ }
+
+    // Auto-provision: run package manager install if package.json exists
+    try {
+      if (fs.existsSync(path.join(worktreePath, 'package.json'))) {
+        const installCmd = fs.existsSync(path.join(workspacePath, 'pnpm-lock.yaml')) ? 'pnpm install'
+          : fs.existsSync(path.join(workspacePath, 'yarn.lock')) ? 'yarn install'
+          : 'npm install';
+        await execAsync(installCmd, { cwd: worktreePath });
+      }
+    } catch { /* non-fatal — worktree is still usable without deps */ }
+
     return worktreePath;
   });
 
@@ -352,11 +371,11 @@ app.whenReady().then(() => {
     fs.writeFileSync(getSettingsFile(), JSON.stringify(settings, null, 2));
   });
 
-  ipcMain.handle('pty:create', (event, { workspaceId, workspacePath, cols, rows }: { workspaceId: string; workspacePath: string; cols: number; rows: number }) => {
+  ipcMain.handle('pty:create', (event, { workspaceId, workspacePath, cols, rows, extraArgs }: { workspaceId: string; workspacePath: string; cols: number; rows: number; extraArgs?: string[] }) => {
     ptyProcesses.get(workspaceId)?.kill();
 
     const { shell: configuredShell } = loadSettings();
-    const ptyProcess = pty.spawn(configuredShell || DEFAULT_SHELL, [], {
+    const ptyProcess = pty.spawn(configuredShell || DEFAULT_SHELL, extraArgs ?? [], {
       name: 'xterm-color',
       cols,
       rows,

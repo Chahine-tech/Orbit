@@ -11,17 +11,23 @@ interface TerminalProps {
   fontSize: number;
   restartCount: number;
   exited: boolean;
+  compacted: boolean;
   onRestart: () => void;
+  onResume: () => void;
+  onDismissCompaction: () => void;
   onInput: (data: string) => void;
+  getResumeArgs: () => string[];
 }
 
-export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSize, restartCount, exited, onRestart, onInput }: TerminalProps) {
+export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSize, restartCount, exited, compacted, onRestart, onResume, onDismissCompaction, onInput, getResumeArgs }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   // Ref so onInput changes (e.g. broadcast toggle) don't recreate the PTY
   const onInputRef = useRef(onInput);
   onInputRef.current = onInput;
+  const getResumeArgsRef = useRef(getResumeArgs);
+  getResumeArgsRef.current = getResumeArgs;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -48,7 +54,7 @@ export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSiz
     xtermRef.current = xterm;
 
     const { cols, rows } = xterm;
-    window.api.ptyCreate(sessionId, workspacePath, cols, rows);
+    window.api.ptyCreate(sessionId, workspacePath, cols, rows, getResumeArgsRef.current());
 
     xterm.onData((data: string) => onInputRef.current(data));
     xterm.onResize(({ cols, rows }: { cols: number; rows: number }) => window.api.ptyResize(sessionId, cols, rows));
@@ -85,10 +91,19 @@ export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSiz
 
   return (
     <div style={{ display: hidden ? 'none' : 'flex', height: '100%', width: '100%', flexDirection: 'column', position: 'relative' }}>
+      {compacted && !exited && (
+        <div className="compaction-banner">
+          <span className="compaction-label">⚡ Context auto-compacted — some detail may be lost</span>
+          <button type="button" className="compaction-dismiss" onClick={onDismissCompaction}>×</button>
+        </div>
+      )}
       <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
       {exited && (
         <div className="session-ended-banner">
           <span className="session-ended-label">⊘ Session ended</span>
+          <button type="button" className="session-resume-btn" title="Continue previous conversation (--continue)" onClick={onResume}>
+            ⟳ Resume
+          </button>
           <button type="button" className="session-restart-btn" onClick={onRestart}>
             ↺ Restart
           </button>

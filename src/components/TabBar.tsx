@@ -6,6 +6,7 @@ interface TabBarProps {
   activeTabId: string;
   editingTabId: string | null;
   tabStatus: Record<string, 'running' | 'exited'>;
+  compactedSessions: Set<string>;
   onSelect: (tabId: string) => void;
   onAdd: () => void;
   onAddWorktree: () => void;
@@ -14,7 +15,7 @@ interface TabBarProps {
   onRename: (tabId: string, label: string) => void;
 }
 
-export function TabBar({ tabs, activeTabId, editingTabId, tabStatus, onSelect, onAdd, onAddWorktree, onClose, onStartEdit, onRename }: TabBarProps) {
+export function TabBar({ tabs, activeTabId, editingTabId, tabStatus, compactedSessions, onSelect, onAdd, onAddWorktree, onClose, onStartEdit, onRename }: TabBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export function TabBar({ tabs, activeTabId, editingTabId, tabStatus, onSelect, o
       {tabs.map(tab => {
         const exited = tabStatus[tab.id] === 'exited';
         const isWorktree = !!tab.worktreeBranch;
+        const isCompacted = compactedSessions.has(tab.id);
         return (
           <div
             key={tab.id}
@@ -58,7 +60,10 @@ export function TabBar({ tabs, activeTabId, editingTabId, tabStatus, onSelect, o
                 }}
               />
             ) : (
-              <span className="tab-label">{tab.label}</span>
+              <>
+                <span className="tab-label">{tab.label}</span>
+                {isCompacted && <span className="tab-compacted" title="Context was auto-compacted">⚡</span>}
+              </>
             )}
             <button
               type="button"

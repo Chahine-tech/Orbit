@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useRef, useState } from 'react';
+import { useReducer, useEffect, useRef, useState, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TabBar } from './components/TabBar';
 import { Terminal } from './components/Terminal';
@@ -250,6 +250,17 @@ export function App() {
   const lastActiveRef = useRef<Record<string, number>>({});
   const [activeSessions, setActiveSessions] = useState<Set<string>>(new Set());
 
+  // Context compaction: track sessions where Claude auto-compacted context
+  const [contextCompacted, setContextCompacted] = useState<Set<string>>(new Set());
+
+  // Pending resume args: consumed once by Terminal effect on next restart
+  const pendingResumeArgsRef = useRef<Record<string, string[]>>({});
+  const getAndClearResumeArgs = useCallback((tabId: string): string[] => {
+    const args = pendingResumeArgsRef.current[tabId] ?? [];
+    delete pendingResumeArgsRef.current[tabId];
+    return args;
+  }, []);
+
   // stateRef: avoids stale closures in long-lived subscriptions and intervals
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -296,7 +307,7 @@ export function App() {
     });
   }, []);
 
-  // Accumulate terminal output for session log export + track activity timestamps
+  // Accumulate terminal output for session log export + track activity timestamps + detect context compaction
   useEffect(() => {
     return window.api.onPtyData((sessionId, data) => {
       const prev = logBuffer.current[sessionId] ?? '';
@@ -304,6 +315,13 @@ export function App() {
         logBuffer.current[sessionId] = prev + data;
       }
       lastActiveRef.current[sessionId] = Date.now();
+
+      // Detect Claude Code auto-compaction notice
+      // eslint-disable-next-line no-control-regex
+      const text = data.replace(/\x1b\[[^a-zA-Z]*[a-zA-Z]/g, '');
+      if (/auto.?compact|compacting.*context|context.*compact/i.test(text)) {
+        setContextCompacted(prev => prev.has(sessionId) ? prev : new Set([...prev, sessionId]));
+      }
     });
   }, []);
 
@@ -388,6 +406,13 @@ export function App() {
   };
 
   const handleRestartTab = (workspaceId: string, tabId: string) => {
+    setContextCompacted(prev => { const next = new Set(prev); next.delete(tabId); return next; });
+    dispatch({ type: 'tab-restarted', workspaceId, tabId });
+  };
+
+  const handleResumeTab = (workspaceId: string, tabId: string) => {
+    pendingResumeArgsRef.current[tabId] = ['--continue'];
+    setContextCompacted(prev => { const next = new Set(prev); next.delete(tabId); return next; });
     dispatch({ type: 'tab-restarted', workspaceId, tabId });
   };
 
@@ -606,6 +631,7 @@ export function App() {
               activeTabId={activeTabId[activeWorkspace.id] ?? ''}
               editingTabId={editingTabId}
               tabStatus={tabStatus}
+              compactedSessions={contextCompacted}
               onSelect={tabId => dispatch({ type: 'active-tab', workspaceId: activeWorkspace.id, tabId })}
               onAdd={() => handleAddTab(activeWorkspace.id)}
               onAddWorktree={() => { setWorktreeOpen(true); setWorktreeError(''); setWorktreeBranch(''); }}
@@ -660,8 +686,12 @@ export function App() {
                           fontSize={settings.fontSize}
                           restartCount={tab.restartCount ?? 0}
                           exited={tabStatus[tab.id] === 'exited'}
+                          compacted={contextCompacted.has(tab.id)}
                           onRestart={() => handleRestartTab(ws.id, tab.id)}
+                          onResume={() => handleResumeTab(ws.id, tab.id)}
+                          onDismissCompaction={() => setContextCompacted(prev => { const next = new Set(prev); next.delete(tab.id); return next; })}
                           onInput={makeOnInput(ws.id, tab.id)}
+                          getResumeArgs={() => getAndClearResumeArgs(tab.id)}
                         />
                         <div className="pane-divider" />
                         <div className="pane-secondary">
@@ -682,8 +712,12 @@ export function App() {
                             fontSize={settings.fontSize}
                             restartCount={tab.splitRestartCount ?? 0}
                             exited={tabStatus[tab.splitSessionId] === 'exited'}
+                            compacted={contextCompacted.has(tab.splitSessionId)}
                             onRestart={() => handleRestartSplit(ws.id, tab.id)}
-                            onInput={makeOnInput(ws.id, tab.splitSessionId)}
+                            onResume={() => handleResumeTab(ws.id, tab.id)}
+                            onDismissCompaction={() => setContextCompacted(prev => { const next = new Set(prev); next.delete(tab.splitSessionId!); return next; })}
+                            onInput={makeOnInput(ws.id, tab.splitSessionId!)}
+                            getResumeArgs={() => getAndClearResumeArgs(tab.splitSessionId!)}
                           />
                         </div>
                       </div>
@@ -699,8 +733,12 @@ export function App() {
                       fontSize={settings.fontSize}
                       restartCount={tab.restartCount ?? 0}
                       exited={tabStatus[tab.id] === 'exited'}
+                      compacted={contextCompacted.has(tab.id)}
                       onRestart={() => handleRestartTab(ws.id, tab.id)}
+                      onResume={() => handleResumeTab(ws.id, tab.id)}
+                      onDismissCompaction={() => setContextCompacted(prev => { const next = new Set(prev); next.delete(tab.id); return next; })}
                       onInput={makeOnInput(ws.id, tab.id)}
+                      getResumeArgs={() => getAndClearResumeArgs(tab.id)}
                     />
                   );
                 })
@@ -732,7 +770,7 @@ export function App() {
           <div className="worktree-dialog" onClick={e => e.stopPropagation()}>
             <div className="worktree-dialog-title">⎇ New worktree tab</div>
             <div className="worktree-dialog-subtitle">
-              Creates <code>{activeWorkspace.path.split('/').pop()}.worktrees/&lt;branch&gt;</code> and opens a session there.
+              Creates <code>{activeWorkspace.path.split('/').pop()}.worktrees/&lt;branch&gt;</code>, copies <code>.env</code> files, and runs install if needed.
             </div>
             <WorktreeInput
               value={worktreeBranch}
