@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld('api', {
 
   statsLoad: () => ipcRenderer.invoke('stats:load'),
   statsSave: (stats: unknown) => ipcRenderer.invoke('stats:save', stats),
+  statsReset: (workspaceId: string) => ipcRenderer.invoke('stats:reset', { workspaceId }),
   logsList: () => ipcRenderer.invoke('logs:list'),
   logsSearch: (query: string) => ipcRenderer.invoke('logs:search', { query }),
   logsOpen: (logPath: string) => ipcRenderer.invoke('logs:open', { logPath }),

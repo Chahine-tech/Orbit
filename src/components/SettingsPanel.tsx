@@ -17,6 +17,7 @@ const SHORTCUTS = [
   { label: 'New tab',            keys: ['⌘', 'T'] },
   { label: 'Close tab',          keys: ['⌘', 'W'] },
   { label: 'Switch to tab 1–9',  keys: ['⌘', '1–9'] },
+  { label: 'Session history',    keys: ['⌘', '⇧', 'H'] },
 ];
 
 interface SettingsPanelProps {
@@ -122,6 +123,24 @@ export function SettingsPanel({ settings, onClose, onChange }: SettingsPanelProp
             </label>
           </div>
           <p className="settings-hint">Automatically spawn all sessions when Orbit launches.</p>
+        </div>
+
+        {/* ── Budget ── */}
+        <div className="settings-section">
+          <div className="settings-section-title">BUDGET ALERT</div>
+          <div className="settings-row">
+            <span className="settings-label">Alert threshold ($)</span>
+            <input
+              type="number"
+              className="settings-input"
+              min={0}
+              step={1}
+              placeholder="0 = off"
+              value={settings.budgetAlert || ''}
+              onChange={e => set({ budgetAlert: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+          <p className="settings-hint">Get notified when accumulated cost per workspace exceeds this amount. 0 = disabled.</p>
         </div>
 
         {/* ── Keyboard shortcuts ── */}

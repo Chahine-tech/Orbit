@@ -23,6 +23,7 @@ export interface Settings {
   shell: string;
   autoStart: boolean;
   sidebarCompact: boolean;
+  budgetAlert: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   shell: 'claude',
   autoStart: false,
   sidebarCompact: false,
+  budgetAlert: 0,
 };
 
 export interface WorkspaceStats {

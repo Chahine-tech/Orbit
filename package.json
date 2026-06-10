@@ -10,7 +10,7 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx .",
+    "lint": "oxlint --config .oxlintrc.json .",
     "build:icons": "node scripts/build-icons.mjs"
   },
   "keywords": [],
@@ -34,12 +34,9 @@
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
-    "@typescript-eslint/eslint-plugin": "^5.62.0",
-    "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-react": "^4.7.0",
     "electron": "42.3.3",
-    "eslint": "^8.57.1",
-    "eslint-plugin-import": "^2.32.0",
+    "oxlint": "^1.69.0",
     "sharp": "^0.34.5",
     "typescript": "^6.0.3",
     "vite": "^5.4.21"

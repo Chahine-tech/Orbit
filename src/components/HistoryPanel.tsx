@@ -58,7 +58,7 @@ export function HistoryPanel({ onClose }: HistoryPanelProps) {
     <div className="settings-overlay" onClick={onClose}>
       <div className="history-panel" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
-          <span className="settings-title">🕐 Session History</span>
+          <span className="settings-title">Session History</span>
           <button type="button" className="settings-close" onClick={onClose}>✕</button>
         </div>
         <div className="history-search-row">

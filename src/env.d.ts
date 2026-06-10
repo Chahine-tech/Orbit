@@ -32,6 +32,7 @@ declare global {
       onUpdateAvailable: (callback: (version: string, url: string) => void) => () => void;
       statsLoad: () => Promise<Record<string, WorkspaceStats>>;
       statsSave: (stats: Record<string, WorkspaceStats>) => Promise<void>;
+      statsReset: (workspaceId: string) => Promise<void>;
       logsList: () => Promise<LogEntry[]>;
       logsSearch: (query: string) => Promise<LogSearchResult[]>;
       logsOpen: (logPath: string) => Promise<void>;

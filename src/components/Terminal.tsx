@@ -12,6 +12,7 @@ interface TerminalProps {
   restartCount: number;
   exited: boolean;
   compacted: boolean;
+  sessionCost?: number;
   onRestart: () => void;
   onResume: () => void;
   onDismissCompaction: () => void;
@@ -19,7 +20,7 @@ interface TerminalProps {
   getResumeArgs: () => string[];
 }
 
-export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSize, restartCount, exited, compacted, onRestart, onResume, onDismissCompaction, onInput, getResumeArgs }: TerminalProps) {
+export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSize, restartCount, exited, compacted, sessionCost, onRestart, onResume, onDismissCompaction, onInput, getResumeArgs }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -100,7 +101,9 @@ export function Terminal({ sessionId, workspacePath, hidden, fontFamily, fontSiz
       <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
       {exited && (
         <div className="session-ended-banner">
-          <span className="session-ended-label">⊘ Session ended</span>
+          <span className="session-ended-label">
+            ⊘ Session ended{sessionCost !== undefined && sessionCost > 0 ? ` · $${sessionCost.toFixed(4)}` : ''}
+          </span>
           <button type="button" className="session-resume-btn" title="Continue previous conversation (--continue)" onClick={onResume}>
             ⟳ Resume
           </button>

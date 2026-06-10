@@ -242,6 +242,7 @@ export function App() {
   const [discoveryState, setDiscoveryState] = useState<{ folderPath: string; repos: Array<{ name: string; path: string }> } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [workspaceStats, setWorkspaceStats] = useState<Record<string, WorkspaceStats>>({});
+  const [sessionStats, setSessionStats] = useState<Record<string, WorkspaceStats>>({});
 
   // Per-session output log for export (capped at 5 MB per session)
   const logBuffer = useRef<Record<string, string>>({});
@@ -329,14 +330,20 @@ export function App() {
       const costMatch = text.match(/[Tt]otal\s+cost[^$\d]*\$?([\d.]+)/);
       const tokenMatch = text.match(/[Tt]otal\s+tokens?[^\d]*([\d,]+)/);
       if (costMatch || tokenMatch) {
+        const parsedCost = costMatch ? parseFloat(costMatch[1]) : 0;
+        const parsedTokens = tokenMatch ? parseInt(tokenMatch[1].replace(/,/g, ''), 10) : 0;
+        setSessionStats(prev => {
+          const ex = prev[sessionId] ?? { cost: 0, tokens: 0 };
+          return { ...prev, [sessionId]: { cost: ex.cost + parsedCost, tokens: ex.tokens + parsedTokens } };
+        });
         const wsId = Object.keys(stateRef.current.tabs).find(wid =>
           stateRef.current.tabs[wid]?.some(t => t.id === sessionId || t.splitSessionId === sessionId)
         );
         if (wsId) {
           setWorkspaceStats(prev => {
             const existing = prev[wsId] ?? { cost: 0, tokens: 0 };
-            const cost = costMatch ? existing.cost + parseFloat(costMatch[1]) : existing.cost;
-            const tokens = tokenMatch ? existing.tokens + parseInt(tokenMatch[1].replace(/,/g, ''), 10) : existing.tokens;
+            const cost = existing.cost + parsedCost;
+            const tokens = existing.tokens + parsedTokens;
             const next = { ...prev, [wsId]: { cost, tokens } };
             window.api.statsSave(next);
             return next;
@@ -428,13 +435,20 @@ export function App() {
 
   const handleRestartTab = (workspaceId: string, tabId: string) => {
     setContextCompacted(prev => { const next = new Set(prev); next.delete(tabId); return next; });
+    setSessionStats(prev => { const next = { ...prev }; delete next[tabId]; return next; });
     dispatch({ type: 'tab-restarted', workspaceId, tabId });
   };
 
   const handleResumeTab = (workspaceId: string, tabId: string) => {
     pendingResumeArgsRef.current[tabId] = ['--continue'];
     setContextCompacted(prev => { const next = new Set(prev); next.delete(tabId); return next; });
+    setSessionStats(prev => { const next = { ...prev }; delete next[tabId]; return next; });
     dispatch({ type: 'tab-restarted', workspaceId, tabId });
+  };
+
+  const handleResetStats = (workspaceId: string) => {
+    setWorkspaceStats(prev => { const next = { ...prev }; delete next[workspaceId]; return next; });
+    window.api.statsReset(workspaceId);
   };
 
   const handleSplitTab = (workspaceId: string, tabId: string) => {
@@ -551,6 +565,8 @@ export function App() {
         const idx = payload.index as number;
         const tabList = tabs[activeId] ?? [];
         if (tabList[idx]) dispatch({ type: 'active-tab', workspaceId: activeId, tabId: tabList[idx].id });
+      } else if (action === 'history') {
+        setHistoryOpen(o => !o);
       }
     });
   }, []);
@@ -609,6 +625,13 @@ export function App() {
             <button type="button" className="update-dismiss" onClick={() => setUpdateInfo(null)}>✕</button>
           </div>
         )}
+        {activeWorkspace && settings.budgetAlert > 0 && (workspaceStats[activeWorkspace.id]?.cost ?? 0) >= settings.budgetAlert && (
+          <div className="budget-banner">
+            <span>⚠ Budget limit reached — ${(workspaceStats[activeWorkspace.id]?.cost ?? 0).toFixed(4)} accumulated for {activeWorkspace.name}</span>
+            <button type="button" className="budget-reset-btn" onClick={() => handleResetStats(activeWorkspace.id)}>Reset stats</button>
+            <button type="button" className="budget-dismiss-btn" onClick={() => handleResetStats(activeWorkspace.id)}>✕</button>
+          </div>
+        )}
         {activeWorkspace && (
           <>
             <div className="workspace-header">
@@ -616,18 +639,23 @@ export function App() {
               {activeBranch && <span className="header-branch">⎇ {activeBranch}</span>}
               <div style={{ flex: 1 }} />
               {workspaceStats[activeWorkspace.id] && (
-                <span className="header-stats" title={`${workspaceStats[activeWorkspace.id].tokens.toLocaleString()} tokens accumulated`}>
-                  ${workspaceStats[activeWorkspace.id].cost.toFixed(4)}
+                <span className="header-stats-group">
+                  <span className="header-stats" title={`${workspaceStats[activeWorkspace.id].tokens.toLocaleString()} tokens accumulated`}>
+                    ${workspaceStats[activeWorkspace.id].cost.toFixed(4)}
+                  </span>
+                  <button type="button" className="header-stats-reset" title="Reset cost stats" onClick={() => handleResetStats(activeWorkspace.id)}>×</button>
                 </span>
               )}
               <button
                 type="button"
-                className="icon-btn"
-                title="Session history"
-                style={{ fontSize: 13 }}
+                className="icon-btn icon-btn-svg"
+                title="Session history (⌘⇧H)"
                 onClick={() => setHistoryOpen(true)}
               >
-                🕐
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
               </button>
               <button
                 type="button"
@@ -722,6 +750,7 @@ export function App() {
                           restartCount={tab.restartCount ?? 0}
                           exited={tabStatus[tab.id] === 'exited'}
                           compacted={contextCompacted.has(tab.id)}
+                          sessionCost={sessionStats[tab.id]?.cost}
                           onRestart={() => handleRestartTab(ws.id, tab.id)}
                           onResume={() => handleResumeTab(ws.id, tab.id)}
                           onDismissCompaction={() => setContextCompacted(prev => { const next = new Set(prev); next.delete(tab.id); return next; })}
@@ -748,6 +777,7 @@ export function App() {
                             restartCount={tab.splitRestartCount ?? 0}
                             exited={tabStatus[tab.splitSessionId] === 'exited'}
                             compacted={contextCompacted.has(tab.splitSessionId)}
+                            sessionCost={tab.splitSessionId ? sessionStats[tab.splitSessionId]?.cost : undefined}
                             onRestart={() => handleRestartSplit(ws.id, tab.id)}
                             onResume={() => handleResumeTab(ws.id, tab.id)}
                             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -772,6 +802,7 @@ export function App() {
                       restartCount={tab.restartCount ?? 0}
                       exited={tabStatus[tab.id] === 'exited'}
                       compacted={contextCompacted.has(tab.id)}
+                      sessionCost={sessionStats[tab.id]?.cost}
                       onRestart={() => handleRestartTab(ws.id, tab.id)}
                       onResume={() => handleResumeTab(ws.id, tab.id)}
                       onDismissCompaction={() => setContextCompacted(prev => { const next = new Set(prev); next.delete(tab.id); return next; })}

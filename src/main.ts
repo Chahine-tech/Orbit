@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell, Notification } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { exec } from 'node:child_process';
@@ -32,11 +32,11 @@ function getSettingsFile() {
 
 const DEFAULT_SHELL = 'claude';
 
-function loadSettings(): { fontFamily: string; fontSize: number; shell: string; autoStart: boolean; sidebarCompact: boolean } {
+function loadSettings(): { fontFamily: string; fontSize: number; shell: string; autoStart: boolean; sidebarCompact: boolean; budgetAlert: number } {
   try {
     return JSON.parse(fs.readFileSync(getSettingsFile(), 'utf-8'));
   } catch {
-    return { fontFamily: '"JetBrains Mono", "Menlo", "Monaco", monospace', fontSize: 13, shell: DEFAULT_SHELL, autoStart: false, sidebarCompact: false };
+    return { fontFamily: '"JetBrains Mono", "Menlo", "Monaco", monospace', fontSize: 13, shell: DEFAULT_SHELL, autoStart: false, sidebarCompact: false, budgetAlert: 0 };
   }
 }
 
@@ -97,6 +97,8 @@ function checkForUpdates(win: BrowserWindow): void {
 const ptyProcesses = new Map<string, pty.IPty>();
 const branchWatchers = new Map<string, fs.FSWatcher>();
 const logStreams = new Map<string, fs.WriteStream>();
+const ptySessionMeta = new Map<string, { workspaceName: string }>();
+const budgetNotifiedWorkspaces = new Set<string>();
 
 function getLogsDir() {
   const dir = path.join(app.getPath('userData'), 'logs');
@@ -174,6 +176,11 @@ function buildMenu() {
           label: 'Close Tab',
           accelerator: 'CmdOrCtrl+W',
           click: () => BrowserWindow.getFocusedWindow()?.webContents.send('shortcut', { action: 'close-tab' }),
+        },
+        {
+          label: 'Session History',
+          accelerator: 'CmdOrCtrl+Shift+H',
+          click: () => BrowserWindow.getFocusedWindow()?.webContents.send('shortcut', { action: 'history' }),
         },
         { type: 'separator' },
         ...Array.from({ length: 9 }, (_, i): Electron.MenuItemConstructorOptions => ({
@@ -423,6 +430,8 @@ app.whenReady().then(() => {
 
     const win = BrowserWindow.fromWebContents(event.sender);
 
+    ptySessionMeta.set(workspaceId, { workspaceName: path.basename(workspacePath) });
+
     // Open log file for this session
     try {
       const logsDir = getLogsDir();
@@ -444,6 +453,11 @@ app.whenReady().then(() => {
       ptyProcesses.delete(workspaceId);
       logStreams.get(workspaceId)?.end();
       logStreams.delete(workspaceId);
+      const meta = ptySessionMeta.get(workspaceId);
+      ptySessionMeta.delete(workspaceId);
+      if (meta && Notification.isSupported()) {
+        new Notification({ title: 'Orbit — Session ended', body: meta.workspaceName }).show();
+      }
       win?.webContents.send('pty:exit', { workspaceId });
     });
 
@@ -469,8 +483,31 @@ app.whenReady().then(() => {
     try { return JSON.parse(fs.readFileSync(getStatsFile(), 'utf-8')); } catch { return {}; }
   });
 
-  ipcMain.handle('stats:save', (_, stats: unknown) => {
-    try { fs.writeFileSync(getStatsFile(), JSON.stringify(stats, null, 2)); } catch { /* ignore */ }
+  ipcMain.handle('stats:save', (_, stats: Record<string, { cost: number; tokens: number }>) => {
+    try {
+      fs.writeFileSync(getStatsFile(), JSON.stringify(stats, null, 2));
+      const { budgetAlert } = loadSettings();
+      if (budgetAlert > 0) {
+        for (const [wsId, wsStats] of Object.entries(stats)) {
+          if (wsStats.cost >= budgetAlert && !budgetNotifiedWorkspaces.has(wsId)) {
+            budgetNotifiedWorkspaces.add(wsId);
+            const ws = loadWorkspaces().find(w => w.id === wsId);
+            if (Notification.isSupported()) {
+              new Notification({ title: 'Orbit — Budget limit reached', body: `${ws?.name ?? 'Workspace'} exceeded $${budgetAlert.toFixed(2)}` }).show();
+            }
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  });
+
+  ipcMain.handle('stats:reset', (_, { workspaceId }: { workspaceId: string }) => {
+    budgetNotifiedWorkspaces.delete(workspaceId);
+    try {
+      const stats = JSON.parse(fs.readFileSync(getStatsFile(), 'utf-8'));
+      delete stats[workspaceId];
+      fs.writeFileSync(getStatsFile(), JSON.stringify(stats, null, 2));
+    } catch { /* ignore */ }
   });
 
   ipcMain.handle('logs:list', () => {

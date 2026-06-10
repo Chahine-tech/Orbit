@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "typescript"],
+  "env": {
+    "browser": true,
+    "es6": true,
+    "node": true
+  },
+  "settings": {
+    "import": {
+      "coreModules": [
+        "electron",
+        "electron/main",
+        "electron/renderer",
+        "electron/common"
+      ]
+    }
+  }
+}
